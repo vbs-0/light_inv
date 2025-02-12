@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto py-6 px-4">
+    <h1 class="text-3xl font-bold text-gray-800 mb-6">Assigned Parts to Buses</h1>
+    
+    <!-- Filters Section -->
+    <div class="bg-white shadow-md rounded-lg p-6 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Search -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Search</label>
+                <div class="relative">
+                    <input type="text" 
+                           id="search" 
+                           placeholder="Search anything..." 
+                           class="w-full p-3 bg-white text-gray-600 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                    <i class="fas fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                </div>
+            </div>
+
+            <!-- Bus Filter -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Filter by Bus</label>
+                <select id="filterBus" 
+                        class="w-full p-3 bg-white text-gray-600 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                    <option value="">All Buses</option>
+                    {% set bus_numbers = [] %}
+                    {% for assignment in assignments %}
+                        {% if assignment.bus_number not in bus_numbers %}
+                            {% set _ = bus_numbers.append(assignment.bus_number) %}
+                            <option value="{{ assignment.bus_number }}">{{ assignment.bus_number }}</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Assigned By Filter -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Filter by Role</label>
+                <select id="filterAssignedBy" 
+                        class="w-full p-3 bg-white text-gray-600 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                    <option value="">All Roles</option>
+                    {% set roles = [] %}
+                    {% for assignment in assignments %}
+                        {% if assignment.assigned_by not in roles %}
+                            {% set _ = roles.append(assignment.assigned_by) %}
+                            <option value="{{ assignment.assigned_by }}">{{ assignment.assigned_by }}</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Sort Options -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
+                <select id="sortOptions" 
+                        class="w-full p-3 bg-white text-gray-600 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                    <option value="date_desc">Date (Latest First)</option>
+                    <option value="date_asc">Date (Oldest First)</option>
+                    <option value="qty_desc">Quantity (High to Low)</option>
+                    <option value="qty_asc">Quantity (Low to High)</option>
+                    <option value="bus_asc">Bus Number (A to Z)</option>
+                    <option value="bus_desc">Bus Number (Z to A)</option>
+                    <option value="part_asc">Part Name (A to Z)</option>
+                    <option value="part_desc">Part Name (Z to A)</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table Section -->
+    <div class="bg-white shadow-md rounded-lg overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Bus Number</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Part Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Quantity</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Assigned By</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Date Assigned</th>
+                    </tr>
+                </thead>
+                <tbody id="assignments-table-body" class="divide-y divide-gray-200">
+                    {% for assignment in assignments %}
+                    <tr class="hover:bg-gray-50 transition-colors duration-150"
+                        data-bus="{{ assignment.bus_number }}"
+                        data-part="{{ assignment.product_name }}"
+                        data-role="{{ assignment.assigned_by }}"
+                        data-quantity="{{ assignment.quantity }}"
+                        data-date="{{ assignment.date_assigned }}">
+                        <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ assignment.bus_number }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ assignment.product_name }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ assignment.quantity }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ assignment.assigned_by }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ assignment.date_assigned.strftime('%Y-%m-%d %H:%M') if assignment.date_assigned else 'N/A' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('search');
+    const filterBus = document.getElementById('filterBus');
+    const filterAssignedBy = document.getElementById('filterAssignedBy');
+    const sortOptions = document.getElementById('sortOptions');
+    
+    // Add event listeners
+    [searchInput, filterBus, filterAssignedBy, sortOptions].forEach(element => {
+        element.addEventListener('input', updateTable);
+        element.addEventListener('change', updateTable);
+    });
+
+    function updateTable() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const selectedBus = filterBus.value.toLowerCase();
+        const selectedRole = filterAssignedBy.value.toLowerCase();
+        const rows = document.querySelectorAll('#assignments-table-body tr');
+        
+        rows.forEach(row => {
+            const busNumber = row.getAttribute('data-bus').toLowerCase();
+            const partName = row.getAttribute('data-part').toLowerCase();
+            const role = row.getAttribute('data-role').toLowerCase();
+            const text = row.textContent.toLowerCase();
+            
+            // Check if row matches all filters
+            const matchesSearch = text.includes(searchTerm);
+            const matchesBus = !selectedBus || busNumber === selectedBus;
+            const matchesRole = !selectedRole || role === selectedRole;
+            
+            row.style.display = (matchesSearch && matchesBus && matchesRole) ? '' : 'none';
+        });
+
+        sortTable();
+    }
+
+    function sortTable() {
+        const sortOption = sortOptions.value;
+        const rows = Array.from(document.querySelectorAll('#assignments-table-body tr'));
+        const tbody = document.getElementById('assignments-table-body');
+
+        rows.sort((a, b) => {
+            let valueA, valueB;
+            
+            switch(sortOption) {
+                case 'date_desc':
+                case 'date_asc':
+                    valueA = new Date(a.getAttribute('data-date'));
+                    valueB = new Date(b.getAttribute('data-date'));
+                    break;
+                case 'qty_desc':
+                case 'qty_asc':
+                    valueA = parseInt(a.getAttribute('data-quantity'));
+                    valueB = parseInt(b.getAttribute('data-quantity'));
+                    break;
+                case 'bus_asc':
+                case 'bus_desc':
+                    valueA = a.getAttribute('data-bus');
+                    valueB = b.getAttribute('data-bus');
+                    break;
+                case 'part_asc':
+                case 'part_desc':
+                    valueA = a.getAttribute('data-part');
+                    valueB = b.getAttribute('data-part');
+                    break;
+            }
+
+            if (sortOption.endsWith('desc')) {
+                [valueA, valueB] = [valueB, valueA];
+            }
+
+            if (typeof valueA === 'string') {
+                return valueA.localeCompare(valueB);
+            }
+            return valueA - valueB;
+        });
+
+        tbody.innerHTML = '';
+        rows.forEach(row => tbody.appendChild(row));
+    }
+
+    // Initial sort
+    sortTable();
+});
+</script>
+{% endblock %}

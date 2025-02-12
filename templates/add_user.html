@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="page-header">
+        <h1 class="page-title">Add New User</h1>
+        <div class="page-actions">
+            <a href="{{ url_for('users') }}" class="btn-secondary">
+                <i class="fas fa-arrow-left mr-2"></i>
+                Back to Users
+            </a>
+        </div>
+    </div>
+
+    <div class="content-card max-w-2xl mx-auto">
+        <div class="p-6">
+            <form action="{{ url_for('add_user') }}" method="POST" class="space-y-6">
+                <div class="grid grid-cols-1 gap-6">
+                    <!-- Name Field -->
+                    <div>
+                        <label for="name" class="block text-sm font-medium text-gray-700">Name</label>
+                        <div class="mt-1 relative">
+                            <i class="fas fa-user absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                            <input type="text" name="name" id="name" required 
+                                class="input-field pl-10" 
+                                placeholder="Enter user's full name">
+                        </div>
+                    </div>
+
+                    <!-- Email Field -->
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+                        <div class="mt-1 relative">
+                            <i class="fas fa-envelope absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                            <input type="email" name="email" id="email" required 
+                                class="input-field pl-10" 
+                                placeholder="Enter user's email address">
+                        </div>
+                    </div>
+
+                    <!-- Password Field -->
+                    <div>
+                        <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+                        <div class="mt-1 relative">
+                            <i class="fas fa-lock absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                            <input type="password" name="password" id="password" required 
+                                class="input-field pl-10" 
+                                placeholder="Enter user's password">
+                        </div>
+                    </div>
+
+                    <!-- Role Field -->
+                    <div>
+                        <label for="role" class="block text-sm font-medium text-gray-700">Role</label>
+                        <div class="mt-1 relative">
+                            <i class="fas fa-user-tag absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                            <select name="role" id="role" required class="input-field pl-10">
+                                <option value="" disabled selected>Select user role</option>
+                                <option value="ADMIN">Admin</option>
+                                <option value="MANAGER">Manager</option>
+                                <option value="SUPERVISOR">Supervisor</option>
+                                <option value="USER">User</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Role Descriptions -->
+                <div class="bg-gray-50 rounded-lg p-4 space-y-3">
+                    <h3 class="text-sm font-medium text-gray-700">Role Permissions:</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div class="flex items-start space-x-3">
+                            <div class="mt-0.5">
+                                <i class="fas fa-shield-alt text-purple-600"></i>
+                            </div>
+                            <div>
+                                <span class="font-medium text-gray-900">Admin</span>
+                                <p class="text-gray-500">Full system access and management</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start space-x-3">
+                            <div class="mt-0.5">
+                                <i class="fas fa-chart-line text-blue-600"></i>
+                            </div>
+                            <div>
+                                <span class="font-medium text-gray-900">Manager</span>
+                                <p class="text-gray-500">Inventory and order management</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start space-x-3">
+                            <div class="mt-0.5">
+                                <i class="fas fa-clipboard-check text-green-600"></i>
+                            </div>
+                            <div>
+                                <span class="font-medium text-gray-900">Supervisor</span>
+                                <p class="text-gray-500">Order approval and team management</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start space-x-3">
+                            <div class="mt-0.5">
+                                <i class="fas fa-user text-gray-600"></i>
+                            </div>
+                            <div>
+                                <span class="font-medium text-gray-900">User</span>
+                                <p class="text-gray-500">Basic system access and operations</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end space-x-3">
+                    <a href="{{ url_for('users') }}" class="btn-secondary">
+                        Cancel
+                    </a>
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-user-plus mr-2"></i>
+                        Add User
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

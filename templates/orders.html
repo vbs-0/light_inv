@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="page-header">
+        <h1 class="text-2xl font-bold text-gray-800">Orders</h1>
+        <div class="flex justify-end space-x-3">
+            <!-- Search and Filter Section -->
+            <form id="searchForm" action="" method="get" class="grid grid-cols-2 gap-4">
+                <div class="relative">
+                    <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    <input type="text" 
+                           id="search" 
+                           name="search" 
+                           value="{{ search }}" 
+                           placeholder="Search Orders" 
+                           class="w-full p-2 pl-10 bg-white text-gray-600 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <select id="status" 
+                        name="status" 
+                        class="w-full p-2 bg-white text-gray-600 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                    <option value="all" {% if status == 'all' %}selected{% endif %}>All</option>
+                    <option value="pending" {% if status == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="approved" {% if status == 'approved' %}selected{% endif %}>Approved</option>
+                    <option value="rejected" {% if status == 'rejected' %}selected{% endif %}>Rejected</option>
+                </select>
+            </form>
+            {% if current_user.role in ['MANAGER','SUPERVISOR'] %}
+            <button class="text-black b-black" onclick="document.getElementById('createOrderModal').classList.remove('hidden')" 
+                    class="px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors duration-200 flex items-center">
+                <i class="fas fa-plus mr-2"></i>
+                Create Order
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="bg-white shadow-md rounded-lg overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Order ID</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Created By</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Status</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Created At</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200" id="orders-table-body">
+                {% for order, user_name, user_role in orders %}
+                <tr class="hover:bg-gray-50 transition-colors duration-200">
+                    <td class="px-4 py-2 text-gray-600">#{{ order.id }}</td>
+                    <td class="px-4 py-2 text-gray-600">{{ user_name }} ({{ user_role }})</td>
+                    <td class="px-4 py-2">
+                        <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
+                            {% if order.status == 'PENDING' %}bg-yellow-100 text-yellow-800
+                            {% elif order.status == 'APPROVED' %}bg-green-100 text-green-800
+                            {% elif order.status == 'REJECTED' %}bg-red-100 text-red-800
+                            {% else %}bg-blue-100 text-blue-800{% endif %}">
+                            {{ order.status }}
+                        </span>
+                    </td>
+                    <td class="px-4 py-2 text-gray-600">{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td class="px-4 py-2 whitespace-nowrap">
+                        <div class="flex space-x-2">
+                            {% if current_user.role in ['MANAGER','ADMIN'] and order.status == 'PENDING' %}
+                            <form action="{{ url_for('update_order_status', order_id=order.id) }}" method="POST" class="inline">
+                                <input type="hidden" name="status" value="APPROVED">
+                                <button type="submit" 
+                                        class="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors duration-200">
+                                    Approve
+                                </button>
+                            </form>
+                            <form action="{{ url_for('update_order_status', order_id=order.id) }}" method="POST" class="inline">
+                                <input type="hidden" name="status" value="REJECTED">
+                                <button type="submit" 
+                                        class="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors duration-200">
+                                    Reject
+                                </button>
+                            </form>
+                            {% endif %}
+                            <button class="text-black" onclick="toggleOrderDetails({{ order.id }})" 
+                                    class="px-3 py-1 bg-cyan-600 text-white rounded hover:bg-cyan-700 transition-colors duration-200">
+                                <i class="fas text-black fa-info-circle mr-1"></i>
+                                Details
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                <tr id="orderDetails{{ order.id }}" class="hidden">
+                    <td colspan="5" class="px-4 py-2 bg-gray-50">
+                        <div class="text-sm">
+                            <h4 class="font-medium text-gray-800 mb-2">Order Items:</h4>
+                            <ul class="list-disc list-inside space-y-1">
+                                {% for item in order.items %}
+                                <li class="flex items-center gap-2 text-gray-600">
+                                    <i class="fas fa-box text-gray-500"></i>
+                                    <span>{{ item.product.name }} - Quantity: {{ item.quantity }}</span>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Create Order Modal -->
+    <div id="createOrderModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <h3 class="text-lg font-medium leading-6 text-gray-900">Create New Order</h3>
+                <input type="text" id="product-search" placeholder="Search Products" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 mb-4">
+                <form action="{{ url_for('create_order') }}" method="POST" class="mt-4 space-y-4" id="orderForm">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Products</label>
+                        <div id="productCheckboxes" class="mt-1">
+                            {% for product in products %}
+                            <div class="flex items-center">
+                                <input type="checkbox" id="product_{{ product.id }}" name="product_ids" value="{{ product.id }}" class="mr-2">
+                                <label for="product_{{ product.id }}" class="text-sm">{{ product.name }} (In Stock: {{ product.quantity }})</label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div id="quantityInputs"></div>
+                    <div class="flex justify-end space-x-3">
+                        <button type="button" onclick="document.getElementById('createOrderModal').classList.add('hidden')" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            Cancel
+                        </button>
+                        <button type="submit" class="bg-indigo-600 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            Create Order
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const productCheckboxes = document.getElementById('productCheckboxes');
+        const quantityInputsDiv = document.getElementById('quantityInputs');
+
+        productCheckboxes.addEventListener('change', function() {
+            quantityInputsDiv.innerHTML = ''; // Clear previous inputs
+            Array.from(this.querySelectorAll('input[type="checkbox"]:checked')).forEach(checkbox => {
+                const productId = checkbox.value;
+                const productName = checkbox.nextElementSibling.textContent;
+                const input = document.createElement('div');
+                input.innerHTML = `
+                    <label for="quantity_${productId}" class="block text-sm font-medium text-gray-700">${productName} Quantity:</label>
+                    <input type="number" name="quantity_${productId}" id="quantity_${productId}" min="1" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                `;
+                quantityInputsDiv.appendChild(input);
+            });
+        });
+
+        const productSearchInput = document.getElementById('product-search');
+        const productCheckboxesDiv = document.getElementById('productCheckboxes');
+
+        productSearchInput.addEventListener('input', function() {
+            const searchValue = productSearchInput.value.toLowerCase();
+            const checkboxes = productCheckboxesDiv.children;
+            Array.from(checkboxes).forEach(checkbox => {
+                const productName = checkbox.textContent.toLowerCase();
+                if (productName.includes(searchValue)) {
+                    checkbox.style.display = 'block';
+                } else {
+                    checkbox.style.display = 'none';
+                }
+            });
+        });
+
+        const searchInput = document.getElementById('search');
+        const sortSelect = document.getElementById('sort');
+        let timeoutId;
+
+        searchInput.addEventListener('input', function() {
+            const searchValue = searchInput.value;
+            const form = searchInput.closest('form');
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(function() {
+                form.submit();
+            }, 500); // submit the form 500ms after the user stops typing
+        });
+
+        sortSelect.addEventListener('change', function() {
+            const form = sortSelect.closest('form');
+            form.submit();
+        });
+
+        function toggleOrderDetails(orderId) {
+            const detailsRow = document.getElementById('orderDetails' + orderId);
+            detailsRow.classList.toggle('hidden');
+        }
+
+        // Close order details when clicking outside
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest('tr')) {
+                const allDetailRows = document.querySelectorAll('[id^="orderDetails"]');
+                allDetailRows.forEach(row => row.classList.add('hidden'));
+            }
+        });
+    </script>
+</div>
+{% endblock %}

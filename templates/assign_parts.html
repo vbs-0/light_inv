@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto p-6">
+    <h1 class="text-3xl font-bold text-gray-800 mb-8"><i class="fas fa-bus mr-2"></i>Assign Parts to Bus</h1>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Bus Selection -->
+        <div class="bg-white shadow-md rounded-lg p-6 border border-blue-400">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4"><i class="fas fa-bus-alt mr-2"></i>Available Buses</h2>
+            
+            <!-- Search Box -->
+            <div class="mb-4">
+                <input type="text" 
+                       id="busSearch" 
+                       class="w-full p-3 bg-white text-gray-600 border border-blue-300 rounded-lg focus:ring-2 focus:ring-indigo-500" 
+                       placeholder="Search bus by number...">
+            </div>
+
+            <!-- Bus Table -->
+            <div class="overflow-auto max-h-96">
+                <table class="w-full border border-blue-300 rounded-lg">
+                    <thead class="bg-gray-50 sticky top-0">
+                        <tr>
+                            <th class="p-3 text-left text-gray-600 border-b border-blue-300">Bus Number</th>
+                            <th class="p-3 text-left text-gray-600 border-b border-blue-300">Name</th>
+                            <th class="p-3 text-center text-gray-600 border-b border-blue-300">Select</th>
+                        </tr>
+                    </thead>
+                    <tbody id="busTableBody">
+                        {% for bus in buses %}
+                        <tr class="border-t border-gray-200 hover:bg-gray-50" data-bus-id="{{ bus.id }}">
+                            <td class="p-3 text-gray-600 border-b border-blue-300 text-center">{{ bus.bus_number }}</td>
+                            <td class="p-3 text-gray-600 border-b border-blue-300">{{ bus.name }}</td>
+                            <td class="p-3 text-center border-b border-blue-300">
+                                <button type="button" 
+                                        onclick="selectBus('{{ bus.id }}', '{{ bus.bus_number }}')"
+                                        class="px-3 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700">
+                                    <i class="fas fa-check mr-2"></i> Select
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Part Selection -->
+        <div class="bg-white shadow-md rounded-lg p-6 border border-blue-400">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4"><i class="fas fa-tools mr-2"></i>Available Parts</h2>
+            
+            <!-- Search Box -->
+            <div class="mb-4">
+                <input type="text" 
+                       id="partSearch" 
+                       class="w-full p-3 bg-white text-gray-600 border border-blue-300 rounded-lg focus:ring-2 focus:ring-indigo-500" 
+                       placeholder="Search part by name...">
+            </div>
+
+            <!-- Parts Table -->
+            <div class="overflow-auto max-h-96">
+                <table class="w-full border border-blue-300 rounded-lg">
+                    <thead class="bg-gray-50 sticky top-0">
+                        <tr>
+                            <th class="p-3 text-left text-gray-600 border-b border-blue-300">Name</th>
+                            <th class="p-3 text-center text-gray-600 border-b border-blue-300">In Stock</th>
+                            <th class="p-3 text-center text-gray-600 border-b border-blue-300">Select</th>
+                        </tr>
+                    </thead>
+                    <tbody id="partTableBody">
+                        {% for part in products %}
+                        <tr class="border-t border-gray-200 hover:bg-gray-50">
+                            <td class="p-3 text-gray-600 border-b border-blue-300">{{ part.name }}</td>
+                            <td class="p-3 text-center text-gray-600 border-b border-blue-300">{{ part.quantity }}</td>
+                            <td class="p-3 text-center border-b border-blue-300">
+                                <button type="button" 
+                                        onclick="selectPart('{{ part.id }}', '{{ part.name }}')"
+                                        class="px-3 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700">
+                                    <i class="fas fa-check mr-2"></i> Select
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assignment Form -->
+    <form id="assignForm" action="{{ url_for('assign_parts') }}" method="POST" class="mt-8 bg-white shadow-md rounded-lg p-6 border border-blue-400">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4"><i class="fas fa-check-square mr-2"></i>Assignment Details</h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Selected Bus -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Selected Bus</label>
+                <input type="text" id="selectedBusDisplay" readonly 
+                       class="w-full p-3 bg-gray-50 text-gray-600 border border-blue-300 rounded-lg" 
+                       placeholder="No bus selected">
+                <input type="hidden" id="selectedBusId" name="bus_id" required>
+            </div>
+
+            <!-- Selected Part -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Selected Part</label>
+                <input type="text" id="selectedPartDisplay" readonly 
+                       class="w-full p-3 bg-gray-50 text-gray-600 border border-blue-300 rounded-lg" 
+                       placeholder="No part selected">
+                <input type="hidden" id="selectedPartId" name="part_id" required>
+            </div>
+
+            <!-- Quantity -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Quantity</label>
+                <input type="number" name="quantity" min="1" required 
+                       class="w-full p-3 bg-white text-gray-600 border border-blue-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+            </div>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="mt-6 flex justify-end">
+            <button type="submit" 
+                    class="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700">
+                <i class="fas fa-plus mr-2"></i>
+                Assign Part
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+// Search functionality for buses
+document.getElementById('busSearch').addEventListener('input', function() {
+    const searchTerm = this.value.toLowerCase();
+    const rows = document.getElementById('busTableBody').getElementsByTagName('tr');
+    
+    Array.from(rows).forEach(row => {
+        const busNumber = row.cells[0].textContent.toLowerCase();
+        const busName = row.cells[1].textContent.toLowerCase();
+        row.style.display = busNumber.includes(searchTerm) || busName.includes(searchTerm) ? '' : 'none';
+    });
+});
+
+// Search functionality for parts
+document.getElementById('partSearch').addEventListener('input', function() {
+    const searchTerm = this.value.toLowerCase();
+    const rows = document.getElementById('partTableBody').getElementsByTagName('tr');
+    
+    Array.from(rows).forEach(row => {
+        const partName = row.cells[0].textContent.toLowerCase();
+        row.style.display = partName.includes(searchTerm) ? '' : 'none';
+    });
+});
+
+// Selection handlers
+function selectBus(id, number) {
+    document.getElementById('selectedBusId').value = id;
+    document.getElementById('selectedBusDisplay').value = document.querySelector(`tr[data-bus-id="${id}"]`).cells[0].textContent;
+}
+
+function selectPart(id, name) {
+    document.getElementById('selectedPartId').value = id;
+    document.getElementById('selectedPartDisplay').value = name;
+}
+</script>
+{% endblock %}

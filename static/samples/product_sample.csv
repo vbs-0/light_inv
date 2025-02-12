@@ -1,0 +1,4 @@
+name,description,quantity,price,category_id,low_stock_threshold
+Engine Oil,High quality engine oil for buses,100,1500.00,1,20
+Air Filter,Heavy duty air filter,50,800.00,1,10
+Brake Pad,Durable brake pads for all models,75,2000.00,2,15
