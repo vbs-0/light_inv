@@ -357,7 +357,7 @@ document.addEventListener('DOMContentLoaded', function() {
         doc.setTextColor(41, 37, 36);
         doc.text('Inventory Management System Report', 14, 22);
         doc.setFontSize(12);
-        doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 32);
+        doc.text(`Generated on: ₹{new Date().toLocaleString()}`, 14, 32);
 
         // Add summary data
         doc.setFontSize(14);

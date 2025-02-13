@@ -22,13 +22,13 @@
             <input type="number" name="quantity" id="quantity" value="{{ product.quantity }}" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
         </div>
         {% endif %}
-        {% if current_user.role in ['ADIMN','MANAGER','SUPERVISOR'] %}
+        {% if current_user.role in ['ADIMN','MANAGER'] %}
         <div>
             <label for="price" class="block text-sm font-medium text-gray-700">Price</label>
             <input type="number" step="0.01" name="price" id="price" value="{{ product.price }}" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
         </div>
         {% endif %}
-        {% if current_user.role in ['ADIMN','SUPERVISOR'] %}
+        {% if current_user.role in ['ADIMN'] %}
         <div>
             <label for="low_stock_threshold" class="block text-sm font-medium text-gray-700">Low Stock Threshold</label>
             <input type="number" name="low_stock_threshold" id="low_stock_threshold" value="{{ product.low_stock_threshold }}" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">

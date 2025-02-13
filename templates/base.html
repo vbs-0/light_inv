@@ -176,6 +176,25 @@
             transform: rotate(90deg);
         }
     </style>
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .animate-slide-in {
+            animation: slideIn 0.3s ease-out;
+        }
+    </style>
 </head>
 <body class="bg-gray-50">
     {% if current_user.is_authenticated %}
@@ -249,25 +268,49 @@
         <!-- Mobile Only - Top Links -->
         <div class="md:hidden menu-section">
             <div class="menu-section-title">Quick Access</div>
+            {% if current_user.role in ['ADMIN', 'MANAGER', 'SUPERVISOR'] %}
             <a href="{{ url_for('reports') }}" class="menu-item">
                 <i class="fas fa-chart-line"></i>
                 <span>Dashboard</span>
             </a>
+            {% endif %}
             <a href="{{ url_for('products') }}" class="menu-item">
                 <i class="fas fa-box"></i>
                 <span>Products</span>
             </a>
+            {% if current_user.role in ['ADMIN', 'MANAGER', 'SUPERVISOR'] %}
             <a href="{{ url_for('orders') }}" class="menu-item">
                 <i class="fas fa-shopping-cart"></i>
                 <span>Orders</span>
             </a>
+            {% endif %}
             {% if current_user.role == 'ADMIN' %}
             <a href="{{ url_for('bulk_upload_page') }}" class="menu-item">
                 <i class="fas fa-upload"></i>
                 <span>Bulk Upload</span>
             </a>
             {% endif %}
-            
+        </div>
+
+        <!-- Main Navigation -->
+        <div class="menu-section">
+            <div class="menu-section-title">Navigation</div>
+            {% if current_user.role in ['ADMIN', 'MANAGER', 'SUPERVISOR'] %}
+            <a href="{{ url_for('reports') }}" class="menu-item">
+                <i class="fas fa-chart-line"></i>
+                <span>Dashboard</span>
+            </a>
+            {% endif %}
+            <a href="{{ url_for('products') }}" class="menu-item">
+                <i class="fas fa-box"></i>
+                <span>Products</span>
+            </a>
+            {% if current_user.role in ['ADMIN', 'MANAGER', 'SUPERVISOR'] %}
+            <a href="{{ url_for('orders') }}" class="menu-item">
+                <i class="fas fa-shopping-cart"></i>
+                <span>Orders</span>
+            </a>
+            {% endif %}
         </div>
 
         <!-- Inventory Section -->
@@ -338,15 +381,40 @@
 
     <main class="pt-16">
         <div class="max-w-7xl mx-auto px-4 py-6">
+            <!-- Flash Messages Popup -->
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
                     {% for category, message in messages %}
-                        <div class="mb-4 p-4 rounded-lg {% if category == 'success' %}bg-green-100 text-green-700 border-l-4 border-green-500{% else %}bg-red-100 text-red-700 border-l-4 border-red-500{% endif %}">
-                            <div class="flex items-center">
-                                <i class="fas fa-{% if category == 'success' %}check-circle{% else %}exclamation-circle{% endif %} mr-2"></i>
-                                {{ message }}
+                    <div id="popup-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center animate-fade-in">
+                        <div id="popup-content" class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 transform transition-all duration-300 scale-100 animate-slide-in">
+                            <div class="p-6 {% if category == 'success' %}bg-green-50{% else %}bg-red-50{% endif %} rounded-lg">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-{% if category == 'success' %}check-circle text-green-500{% else %}exclamation-circle text-red-500{% endif %} text-xl mr-3"></i>
+                                        <p class="{% if category == 'success' %}text-green-700{% else %}text-red-700{% endif %} font-medium">
+                                            {{ message }}
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
+                    </div>
+                    <script>
+                        // Auto-dismiss after 10 seconds
+                        setTimeout(() => {
+                            const overlay = document.getElementById('popup-overlay');
+                            if (overlay) {
+                                overlay.remove();
+                            }
+                        }, 10000);
+
+                        // Close on click outside
+                        document.getElementById('popup-overlay').addEventListener('click', function(e) {
+                            if (e.target === this) {
+                                this.remove();
+                            }
+                        });
+                    </script>
                     {% endfor %}
                 {% endif %}
             {% endwith %}

@@ -24,7 +24,7 @@ app.config['SECRET_KEY'] = 'your-secret-key'
 
 # Set database URI
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:6399@localhost/inventory_db'
-
+#app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:6399@localhost/inventory_db'
 # Disable track modifications to prevent app overhead
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -120,7 +120,33 @@ class UserActivity(db.Model):
     
 
 
+@app.route('/add_users', methods=['GET'])
+def add_users():
+    """Add predefined users to the database."""
+    users = [
+        {'name': 'Admin', 'email': 'admin@example.com', 'password': 'admin124', 'role': 'admin'},
+        {'name': 'Supervisor', 'email': 'supervisor@example.com', 'password': '123', 'role': 'supervisor'},
+        {'name': 'Manager', 'email': 'manager@example.com', 'password': '123', 'role': 'manager'},
+        {'name': 'User ', 'email': 'user@gmail.com', 'password': '123', 'role': 'user'},
+    ]
 
+    for user_data in users:
+        # Check if the user already exists
+        existing_user = User.query.filter_by(email=user_data['email']).first()
+        if existing_user:
+            continue  # Skip if the user already exists
+
+        # Create a new user instance
+        new_user = User(
+            name=user_data['name'],
+            email=user_data['email'],
+            password=generate_password_hash(user_data['password']),  # Hash the password
+            role=user_data['role']
+        )
+        db.session.add(new_user)
+
+    db.session.commit()
+    return "Users added successfully!"
 
 # Custom decorators for role-based access control
 def admin_required(f):
@@ -465,29 +491,54 @@ def orders():
     """Orders route."""
     log_user_activity('visited orders')
     
-    # Get filter parameters from request
+    # Get filter and pagination parameters from request
     search = request.args.get('search', '')
     status = request.args.get('status', 'all')
+    page = request.args.get('page', 1, type=int)
+    per_page = 10  # Number of items per page
 
-    if current_user.role in ['ADMIN','SUPERVISOR', 'MANAGER']:
-        # Fetch all orders and sort by order ID in descending order
-        orders = Order.query.join(User).add_columns(User.name, User.role).order_by(Order.id.desc()).all()
+    # Base query
+    if current_user.role in ['ADMIN', 'SUPERVISOR', 'MANAGER']:
+        query = Order.query.join(User).add_columns(User.name, User.role)
     else:
-        # Fetch user's orders and sort by order ID in descending order
-        orders = Order.query.filter_by(user_id=current_user.id).join(User).add_columns(User.name, User.role).order_by(Order.id.desc()).all()
-    
-    # Apply filter
-    filtered_orders = []
-    for order, user_name, user_role in orders:
-        if (search.lower() in str(order.id) or 
-            search.lower() in user_name.lower() or 
-            search.lower() in user_role.lower() or 
-            search.lower() in order.status.lower()):
-            if status == 'all' or status.upper() == order.status:
-                filtered_orders.append((order, user_name, user_role))
-    
+        query = Order.query.filter_by(user_id=current_user.id).join(User).add_columns(User.name, User.role)
+
+    # Apply search filter if provided
+    if search:
+        search_terms = search.lower().split()
+        for term in search_terms:
+            query = query.filter(
+                db.or_(
+                    Order.id.cast(db.String).ilike(f'%{term}%'),
+                    User.name.ilike(f'%{term}%'),
+                    User.role.ilike(f'%{term}%'),
+                    Order.status.ilike(f'%{term}%')
+                )
+            )
+
+    # Apply status filter if provided
+    if status and status != 'all':
+        query = query.filter(Order.status == status.upper())
+
+    # Apply sorting
+    query = query.order_by(Order.id.desc())
+
+    # Paginate results
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    orders = pagination.items
+
     products = Product.query.all()
-    return render_template('orders.html', orders=filtered_orders, products=products, search=search, status=status)
+    categories = Category.query.all()  # Get all categories
+    return render_template(
+        'orders.html',
+        orders=orders,
+        products=products,
+        categories=categories,  # Pass categories to template
+        search=search,
+        status=status,
+        pagination=pagination,
+        min=min  # Add the min function to the template context
+    )
 
 @app.route('/orders/create', methods=['POST'])
 @login_required
@@ -502,10 +553,7 @@ def create_order():
             product_id = key.split('_')[1]
             quantity = int(request.form.get(key))
             
-            # Prevent negative quantities
-            if quantity < 1:
-                flash('Quantity must be at least 1 for all items.', 'error')
-                return redirect(url_for('orders'))
+            # Remove the limit on quantity for order creation
 
             order_item = OrderItem(product_id=product_id, quantity=quantity)
             order.items.append(order_item)
@@ -526,6 +574,32 @@ def create_order():
     flash('Order created successfully')
     return redirect(url_for('orders'))
 
+
+@app.route('/orders/<int:order_id>/details')
+@login_required
+def get_order_details(order_id):
+    """Get order details route."""
+    order = Order.query.get_or_404(order_id)
+    
+    # Get order items with product details
+    items = db.session.query(
+        OrderItem, Product
+    ).join(Product).filter(OrderItem.order_id == order_id).all()
+    
+    # Format the data
+    order_details = {
+        'id': order.id,
+        'status': order.status,
+        'created_at': order.created_at.strftime('%Y-%m-%d %H:%M'),
+        'items': [{
+            'product_name': item.Product.name,
+            'quantity': item.OrderItem.quantity,
+            'price': item.Product.price,
+            'total': item.OrderItem.quantity * item.Product.price
+        } for item in items]
+    }
+    
+    return jsonify(order_details)
 
 @app.route('/orders/<int:order_id>/update-status', methods=['POST'])
 @manager_required
@@ -1217,6 +1291,12 @@ def download_sample(type):
         flash(f'Error downloading sample file: {str(e)}', 'error')
     
     return redirect(url_for('bulk_upload_page'))
+
+@app.route('/products/<int:category_id>', methods=['GET'])
+def get_products_by_category(category_id):
+    """Fetch products for a specific category."""
+    products = Product.query.filter_by(category_id=category_id).all()  # Adjust based on your ORM
+    return jsonify({'products': [{'id': product.id, 'name': product.name} for product in products]})
 
 if __name__ == '__main__':
     with app.app_context():
