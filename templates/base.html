@@ -316,7 +316,7 @@
         <!-- Inventory Section -->
         <div class="menu-section">
             <div class="menu-section-title">Inventory</div>
-            {% if current_user.role in ['ADMIN', 'MANAGER'] %}
+            {% if current_user.role in ['ADMIN', 'MANAGER','USER','SUPERVISOR'] %}
             <a href="{{ url_for('categories') }}" class="menu-item">
                 <i class="fas fa-tags"></i>
                 <span>Categories</span>
