@@ -117,6 +117,20 @@ class UserActivity(db.Model):
 
     # Define a relationship to the User model
     user = db.relationship('User', backref='activities')
+
+class Fuel(db.Model):
+    """Define the Fuel model for tracking fuel consumption."""
+    id = db.Column(db.Integer, primary_key=True)
+    bus_id = db.Column(db.Integer, db.ForeignKey('bus.id'), nullable=False)
+    fuel_amount = db.Column(db.Float, nullable=False)  # Fuel amount in Liters
+    reading = db.Column(db.Float, nullable=False)  # Reading in kilometers
+    date = db.Column(db.Date, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Define relationships
+    bus = db.relationship('Bus', backref='fuel_records')
+    user = db.relationship('User', backref='fuel_entries')
     
 
 
@@ -1297,6 +1311,118 @@ def get_products_by_category(category_id):
     """Fetch products for a specific category."""
     products = Product.query.filter_by(category_id=category_id).all()  # Adjust based on your ORM
     return jsonify({'products': [{'id': product.id, 'name': product.name} for product in products]})
+
+@app.route('/fuel-consumption', methods=['GET'])
+@login_required
+def fuel_consumption():
+    """Fuel consumption management page."""
+    buses = Bus.query.all()
+    
+    # Calculate last week consumption and total mileage for each bus
+    one_week_ago = datetime.utcnow() - timedelta(days=7)
+    
+    for bus in buses:
+        # Get all fuel records for this bus
+        fuel_records = Fuel.query.filter_by(bus_id=bus.id).order_by(Fuel.date.desc()).all()
+        
+        # Calculate total fuel consumption
+        bus.total_fuel_consumption = sum(record.fuel_amount for record in fuel_records)
+        
+        # Calculate current mileage (km/L) from the last two records
+        if len(fuel_records) >= 2:
+            latest_record = fuel_records[0]
+            prev_record = fuel_records[1]
+            distance = latest_record.reading - prev_record.reading
+            bus.current_mileage = distance / latest_record.fuel_amount if latest_record.fuel_amount > 0 else 0
+        else:
+            bus.current_mileage = 0
+    
+    return render_template('fuel_consumption.html', buses=buses)
+
+
+@app.route('/fuel-logs')
+@login_required
+def fuel_logs():
+    """View all fuel consumption logs."""
+    fuel_logs = Fuel.query.order_by(Fuel.date.desc()).all()
+    return render_template('fuel_logs.html', fuel_logs=fuel_logs)
+
+
+
+
+@app.route('/add-fuel-consumption', methods=['POST'])
+@login_required
+def add_fuel_consumption():
+    """Add new fuel consumption record."""
+    try:
+        bus_id = request.form.get('bus_id')
+        fuel_amount = float(request.form.get('fuel_amount'))
+        reading = float(request.form.get('reading'))
+        date_str = request.form.get('date')
+        
+        if not all([bus_id, fuel_amount, reading, date_str]):
+            flash('All fields are required', 'error')
+            return redirect(url_for('fuel_consumption'))
+        
+        date = datetime.strptime(date_str, '%Y-%m-%d')
+        
+        # Get the last fuel record for this bus to calculate distance traveled
+        last_record = Fuel.query.filter_by(bus_id=bus_id).order_by(Fuel.date.desc()).first()
+        
+        fuel_record = Fuel(
+            bus_id=bus_id,
+            fuel_amount=fuel_amount,
+            reading=reading,
+            date=date,
+            created_by=current_user.id
+        )
+        
+        db.session.add(fuel_record)
+        db.session.commit()
+        
+        # Calculate and display mileage if there's a previous record
+        if last_record:
+            distance = reading - last_record.reading
+            mileage = distance / fuel_amount if fuel_amount > 0 else 0
+            flash(f'Fuel consumption record added successfully. Distance: {distance:.2f} km, Mileage: {mileage:.2f} km/L')
+        else:
+            flash('First fuel consumption record added successfully')
+            
+        return redirect(url_for('fuel_consumption'))
+        
+    except ValueError as e:
+        flash(f'Invalid input: {str(e)}', 'error')
+        return redirect(url_for('fuel_consumption'))
+
+@app.route('/fuel-history/<int:bus_id>')
+@login_required
+def fuel_history(bus_id):
+    """Get fuel consumption history for a specific bus."""
+    records = Fuel.query.filter_by(bus_id=bus_id).order_by(Fuel.date.desc()).all()
+    
+    history = []
+    for i, record in enumerate(records):
+        entry = {
+            'date': record.date.strftime('%Y-%m-%d %H:%M'),
+            'fuel_amount': record.fuel_amount,
+            'reading': record.reading
+        }
+        
+        # Calculate mileage if there's a next record (previous chronologically)
+        if i < len(records) - 1:
+            next_record = records[i + 1]
+            distance = record.reading - next_record.reading
+            mileage = distance / record.fuel_amount if record.fuel_amount > 0 else 0
+            entry['distance'] = f"{distance:.2f} km"
+            entry['mileage'] = f"{mileage:.2f} km/L"
+        else:
+            entry['distance'] = "N/A"
+            entry['mileage'] = "N/A"
+            
+        history.append(entry)
+    
+    return jsonify({'history': history})
+
 
 if __name__ == '__main__':
     with app.app_context():
