@@ -241,6 +241,13 @@
                     {% endif %}
                 </div>
 
+                <div class="mt-auto pt-4 border-t">
+                    <a href="{{ url_for('logout') }}" class="menu-item text-red-600 hover:bg-red-50">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Logout</span>
+                    </a>
+                </div>
+
                 <!-- Right Side - User Profile -->
                 <div class="flex items-center">
                     <div class="user-profile hidden md:flex items-center space-x-2">
@@ -345,7 +352,7 @@
                 <i class="fas fa-list"></i>
                 <span>Fuel Logs</span>
             </a>
-            {% if current_user.role in ['SUPERVISOR', 'USER'] %}
+            {% if current_user.role in ['SUPERVISOR'] %}
             <a href="{{ url_for('assign_parts') }}" class="menu-item">
                 <i class="fas fa-tools"></i>
                 <span>Assign Parts</span>
