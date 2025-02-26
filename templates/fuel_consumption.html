@@ -7,7 +7,6 @@
     </div>
 
     <!-- Add Fuel Consumption Form -->
-    {% if current_user.role in ['SUPERVISOR'] %}
     <div class="content-card p-6">
         <h2 class="text-xl font-semibold mb-4">Add Fuel Consumption Record</h2>
         <form action="{{ url_for('add_fuel_consumption') }}" method="POST" class="space-y-4">
@@ -43,7 +42,6 @@
             </div>
         </form>
     </div>
-    {% endif %}
 
     <!-- Buses Fuel Consumption Table -->
     <div class="content-card p-6">
