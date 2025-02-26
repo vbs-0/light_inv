@@ -21,7 +21,7 @@ app = Flask(__name__)
 
 # Set secret key for security
 app.config['SECRET_KEY'] = 'your-secret-key'
-
+#hehe
 # Set database URI
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:6399@localhost/inventory_db'
 #app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:6399@localhost/inventory_db'
