@@ -476,10 +476,13 @@ def categories():
     """Categories route."""
     log_user_activity('visited categories')
     categories = Category.query.all()
+    products = Product.query.all()
+
     return render_template('categories.html', categories=categories)
 
 @app.route('/categories/add', methods=['POST'])
-@manager_required
+#@manager_required
+@login_required
 def add_category():
     """Add category route."""
     name = request.form.get('name')
@@ -1216,7 +1219,7 @@ def bulk_upload(type):
                 db.session.add(bus)
             
         elif type == 'product':
-            required_columns = ['name', 'description', 'quantity', 'price', 'category_id', 'low_stock_threshold']
+            required_columns = ['name', 'description', 'quantity', 'price', 'category', 'low_stock_threshold']
             if not all(col in df.columns for col in required_columns):
                 flash('Missing required columns for product data', 'error')
                 return redirect(url_for('bulk_upload_page'))
@@ -1226,7 +1229,6 @@ def bulk_upload(type):
                     # Validate numeric values
                     quantity = int(row['quantity'])
                     price = float(row['price'])
-                    category_id = int(row['category_id'])
                     low_stock_threshold = int(row['low_stock_threshold'])
                     
                     if quantity < 0:
@@ -1239,9 +1241,10 @@ def bulk_upload(type):
                         flash(f'Product {row["name"]}: Low stock threshold cannot be negative', 'error')
                         continue
                         
-                    # Check if category exists
-                    if not Category.query.get(category_id):
-                        flash(f'Product {row["name"]}: Category ID {category_id} does not exist', 'error')
+                    # Get category by name
+                    category = Category.query.filter_by(name=row['category']).first()
+                    if not category:
+                        flash(f'Product {row["name"]}: Category "{row["category"]}" does not exist', 'error')
                         continue
                     
                     # Check for duplicate product name
@@ -1254,7 +1257,7 @@ def bulk_upload(type):
                         description=row['description'],
                         quantity=quantity,
                         price=price,
-                        category_id=category_id,
+                        category_id=category.id,
                         low_stock_threshold=low_stock_threshold
                     )
                     db.session.add(product)

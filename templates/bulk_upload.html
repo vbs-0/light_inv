@@ -47,7 +47,7 @@
         <div class="bg-white shadow-md rounded-lg p-6">
             <h2 class="text-xl font-semibold text-gray-800 mb-4">Upload Products</h2>
             <p class="text-sm text-gray-600 mb-4">
-                Required columns: name, description, quantity, price, category_id, low_stock_threshold
+                Required columns: name, description, quantity, price, category, low_stock_threshold
             </p>
             <div class="flex gap-4">
                 <form action="{{ url_for('bulk_upload', type='product') }}" method="POST" enctype="multipart/form-data" class="flex-1 space-y-4">
