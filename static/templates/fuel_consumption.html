@@ -1,0 +1,309 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="page-header">
+        <h1 class="page-title">Fuel Consumption Management</h1>
+    </div>
+
+    <!-- Add Fuel Consumption Form -->
+    {% if current_user.role in ['SUPERVISOR'] %}
+    <div class="content-card p-6">
+        <h2 class="text-xl font-semibold mb-4">Add Fuel Consumption Record</h2>
+        <form action="{{ url_for('add_fuel_consumption') }}" method="POST" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label for="bus_id" class="block text-sm font-medium text-gray-700">Select Bus</label>
+                    <select name="bus_id" id="bus_id" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        {% for bus in buses %}
+                        <option value="{{ bus.id }}">{{ bus.bus_number_plate }} ({{ bus.bus_number }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label for="fuel_amount" class="block text-sm font-medium text-gray-700">Fuel Amount (Liters)</label>
+                    <input type="number" step="0.01" name="fuel_amount" id="fuel_amount" required min="0.01" 
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label for="reading" class="block text-sm font-medium text-gray-700">Reading (Kilometers)</label>
+                    <input type="number" step="0.01" name="reading" id="reading" required min="0" 
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label for="date" class="block text-sm font-medium text-gray-700">Date</label>
+                    <input type="date" name="date" id="date" required 
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                </div>
+            </div>
+            <div class="flex justify-end">
+                <button type="submit" class="btn-primary">
+                    <i class="fas fa-plus mr-2"></i>Add Record
+                </button>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- Buses Fuel Consumption Table -->
+    <div class="content-card p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-semibold">Buses Fuel Consumption</h2>
+            <div class="flex space-x-4">
+                <input type="text" id="searchInput" placeholder="Search buses, consumption, mileage..." 
+                       class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                <select id="fuelFilter" class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <option value="all">All Records</option>
+                    <option value="efficient">Efficient (>15 km/L)</option>
+                    <option value="normal">Normal (10-15 km/L)</option>
+                    <option value="inefficient">Inefficient (<10 km/L)</option>
+                </select>
+                <select id="sortBy" class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <option value="bus">Sort by Bus Number</option>
+                    <option value="consumption">Sort by Consumption</option>
+                    <option value="mileage">Sort by Mileage</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bus Number</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Fuel Consumption</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Mileage</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200" id="busesTableBody">
+                    {% for bus in buses %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ bus.bus_number_plate }} ({{ bus.bus_number }})</td>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ bus.total_fuel_consumption|default(0, true) }} L</td>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ bus.current_mileage|default(0, true) }} km</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <button onclick="showFuelHistory('{{ bus.id }}')" class="btn-secondary">
+                                <i class="fas fa-history mr-2"></i>History
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="mt-4 flex items-center justify-between">
+            <div class="flex-1 flex justify-between sm:hidden">
+                <button onclick="previousPage()" class="btn-secondary">Previous</button>
+                <button onclick="nextPage()" class="btn-secondary">Next</button>
+            </div>
+            <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div>
+                    <p class="text-sm text-gray-700">
+                        Showing page <span id="currentPage">1</span> of <span id="totalPages">{{ (buses|length / 15)|round(0, 'ceil')|int }}</span>
+                    </p>
+                </div>
+                <div>
+                    <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                        <button onclick="previousPage()" class="btn-secondary">Previous</button>
+                        <button onclick="nextPage()" class="btn-secondary">Next</button>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fuel History Modal -->
+    <div id="fuelHistoryModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-medium text-gray-900">Fuel Consumption History</h3>
+                    <button onclick="closeFuelHistory()" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="mb-4">
+                    <input type="text" id="historySearch" placeholder="Search history..." 
+                           class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                </div>
+                <div id="fuelHistoryContent" class="max-h-96 overflow-y-auto">
+                    <!-- Fuel history will be dynamically populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const itemsPerPage = 15;
+let currentPage = 1;
+let filteredBuses = [];
+
+function updatePagination() {
+    const rows = document.querySelectorAll('#busesTableBody tr');
+    const visibleRows = Array.from(rows).filter(row => !row.hasAttribute('data-hidden'));
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    
+    rows.forEach(row => row.style.display = 'none');
+    visibleRows.slice(startIndex, endIndex).forEach(row => row.style.display = '');
+    
+    document.getElementById('currentPage').textContent = currentPage;
+    document.getElementById('totalPages').textContent = Math.ceil(visibleRows.length / itemsPerPage);
+}
+
+function updateTableVisibility(filteredRows) {
+    const rows = document.querySelectorAll('#busesTableBody tr');
+    rows.forEach(row => {
+        if (filteredRows.includes(row)) {
+            row.removeAttribute('data-hidden');
+        } else {
+            row.setAttribute('data-hidden', '');
+        }
+    });
+    currentPage = 1;
+    updatePagination();
+}
+
+function previousPage() {
+    if (currentPage > 1) {
+        currentPage--;
+        updatePagination();
+    }
+}
+
+function nextPage() {
+    const totalPages = Math.ceil(filteredBuses.length / itemsPerPage);
+    if (currentPage < totalPages) {
+        currentPage++;
+        updatePagination();
+    }
+}
+
+function showFuelHistory(busId) {
+    fetch(`/fuel-history/${busId}`)
+        .then(response => response.json())
+        .then(data => {
+            const historyContent = document.getElementById('fuelHistoryContent');
+            historyContent.innerHTML = data.history.map(record => `
+                <div class="p-3 border-b">
+                    <div class="flex flex-col space-y-2">
+                        <div class="flex justify-between">
+                            <span class="font-medium">${record.date}</span>
+                            <span>${record.fuel_amount} L</span>
+                        </div>
+                        <div class="flex justify-between text-sm text-gray-600">
+                            <span>Reading: ${record.reading} km</span>
+                        </div>
+                        <div class="flex justify-between text-sm text-gray-600">
+                            <span>Distance: ${record.distance}</span>
+                            <span>Mileage: ${record.mileage}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            document.getElementById('fuelHistoryModal').classList.remove('hidden');
+        });
+}
+
+function closeFuelHistory() {
+    document.getElementById('fuelHistoryModal').classList.add('hidden');
+}
+
+document.getElementById('historySearch').addEventListener('input', function(e) {
+    const searchText = e.target.value.toLowerCase();
+    const historyItems = document.querySelectorAll('#fuelHistoryContent > div');
+    
+    historyItems.forEach(item => {
+        const text = item.textContent.toLowerCase();
+        item.style.display = text.includes(searchText) ? '' : 'none';
+    });
+});
+
+// Search functionality
+document.getElementById('searchInput').addEventListener('input', function(e) {
+    const searchText = e.target.value.toLowerCase().trim();
+    const rows = document.querySelectorAll('#busesTableBody tr');
+    
+    if (searchText === '') {
+        updateTableVisibility(Array.from(rows));
+        return;
+    }
+    
+    const filteredRows = Array.from(rows).filter(row => {
+        const busNumber = row.children[0].textContent.toLowerCase();
+        const consumption = row.children[1].textContent.toLowerCase();
+        const mileage = row.children[2].textContent.toLowerCase();
+        const searchTerms = searchText.split(/\s+/);
+        
+        return searchTerms.every(term => 
+            busNumber.includes(term) || 
+            consumption.includes(term) || 
+            mileage.includes(term)
+        );
+    });
+    
+    updateTableVisibility(filteredRows);
+});
+
+// Filter functionality
+document.getElementById('fuelFilter').addEventListener('change', function(e) {
+    const filterValue = e.target.value;
+    const rows = document.querySelectorAll('#busesTableBody tr');
+    
+    const filteredRows = Array.from(rows).filter(row => {
+        const mileage = parseFloat(row.children[2].textContent.split(' ')[0]);  // Remove 'km' unit
+        
+        switch(filterValue) {
+            case 'efficient':
+                return mileage > 15;
+            case 'normal':
+                return mileage >= 10 && mileage <= 15;
+            case 'inefficient':
+                return mileage < 10;
+            default:
+                return true;
+        }
+    });
+    
+    updateTableVisibility(filteredRows);
+});
+
+// Sort functionality
+document.getElementById('sortBy').addEventListener('change', function(e) {
+    const sortValue = e.target.value;
+    const rows = Array.from(document.querySelectorAll('#busesTableBody tr'));
+    
+    rows.sort((a, b) => {
+        switch(sortValue) {
+            case 'bus':
+                return a.children[0].textContent.localeCompare(b.children[0].textContent);
+            case 'consumption':
+                return parseFloat(b.children[1].textContent.split(' ')[0]) - parseFloat(a.children[1].textContent.split(' ')[0]);  // Remove 'L' unit
+            case 'mileage':
+                return parseFloat(b.children[2].textContent.split(' ')[0]) - parseFloat(a.children[2].textContent.split(' ')[0]);  // Remove 'km' unit
+            default:
+                return 0;
+        }
+    });
+    
+    const tbody = document.getElementById('busesTableBody');
+    rows.forEach(row => tbody.appendChild(row));
+    
+    // Keep current filter and search
+    const currentFilter = document.getElementById('fuelFilter').value;
+    if (currentFilter !== 'all') {
+        document.getElementById('fuelFilter').dispatchEvent(new Event('change'));
+    } else {
+        updateTableVisibility(rows);
+    }
+});
+
+
+// Initialize pagination
+updatePagination();
+</script>
+{% endblock %}

@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto py-6 px-4">
+    <h1 class="text-3xl font-bold text-gray-800 mb-8">Edit Bus Details</h1>
+
+    <div class="bg-white shadow-md rounded-lg p-6">
+        <form action="{{ url_for('edit_bus', bus_id=bus.id) }}" method="POST" class="space-y-6">
+            <!-- Bus Number -->
+            <div>
+                <label for="bus_number" class="block text-sm font-medium text-gray-700 mb-2">Bus Number</label>
+                <input type="text" 
+                       id="bus_number" 
+                       name="bus_number" 
+                       value="{{ bus.bus_number }}" 
+                       required 
+                       class="w-full p-3 bg-white text-gray-600 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+            </div>
+
+            <!-- Bus Number Plate -->
+            <div>
+                <label for="bus_number_plate" class="block text-sm font-medium text-gray-700 mb-2">Bus Number Plate</label>
+                <input type="text" 
+                       id="bus_number_plate" 
+                       name="bus_number_plate" 
+                       value="{{ bus.bus_number_plate }}" 
+                       required 
+                       class="w-full p-3 bg-white text-gray-600 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+            </div>
+
+            <!-- Manufacturer -->
+            <div>
+                <label for="manufacturer" class="block text-sm font-medium text-gray-700 mb-2">Manufacturer</label>
+                <input type="text" 
+                       id="manufacturer" 
+                       name="manufacturer" 
+                       value="{{ bus.manufacturer }}" 
+                       required 
+                       class="w-full p-3 bg-white text-gray-600 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+            </div>
+
+            <!-- Dates Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Manufacturer Date -->
+                <div>
+                    <label for="manufacturer_date" class="block text-sm font-medium text-gray-700 mb-2">Manufacturer Date</label>
+                    <input type="date" 
+                           id="manufacturer_date" 
+                           name="manufacturer_date" 
+                           value="{{ bus.manufacturer_date.strftime('%Y-%m-%d') if bus.manufacturer_date else '' }}" 
+                           required 
+                           class="w-full p-3 bg-white text-gray-600 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                </div>
+
+                <!-- Bought Date -->
+                <div>
+                    <label for="bought_date" class="block text-sm font-medium text-gray-700 mb-2">Bought Date</label>
+                    <input type="date" 
+                           id="bought_date" 
+                           name="bought_date" 
+                           value="{{ bus.bought_date.strftime('%Y-%m-%d') if bus.bought_date else '' }}" 
+                           required 
+                           class="w-full p-3 bg-white text-gray-600 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                </div>
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex justify-end space-x-4">
+                <a href="{{ url_for('manage_buses') }}" 
+                   class="px-6 py-3 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500">
+                    Cancel
+                </a>
+                <button type="submit" 
+                        class="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    Update Bus
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Format dates for date inputs
+    const manufacturerDate = document.getElementById('manufacturer_date');
+    const boughtDate = document.getElementById('bought_date');
+    
+    // Set min/max dates
+    const today = new Date().toISOString().split('T')[0];
+    boughtDate.max = today;
+    manufacturerDate.max = today;
+});
+</script>
+{% endblock %}

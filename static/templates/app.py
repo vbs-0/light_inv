@@ -24,7 +24,7 @@ app.config['SECRET_KEY'] = 'your-secret-key'
 
 # Set database URI
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:6399@localhost/inventory_db'
-#app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:6399@localhost/inventory_db'
+
 # Disable track modifications to prevent app overhead
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -117,50 +117,10 @@ class UserActivity(db.Model):
 
     # Define a relationship to the User model
     user = db.relationship('User', backref='activities')
-
-class Fuel(db.Model):
-    """Define the Fuel model for tracking fuel consumption."""
-    id = db.Column(db.Integer, primary_key=True)
-    bus_id = db.Column(db.Integer, db.ForeignKey('bus.id'), nullable=False)
-    fuel_amount = db.Column(db.Float, nullable=False)  # Fuel amount in Liters
-    reading = db.Column(db.Float, nullable=False)  # Reading in kilometers
-    date = db.Column(db.Date, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    
-    # Define relationships
-    bus = db.relationship('Bus', backref='fuel_records')
-    user = db.relationship('User', backref='fuel_entries')
     
 
 
-@app.route('/add_users', methods=['GET'])
-def add_users():
-    """Add predefined users to the database."""
-    users = [
-        {'name': 'Admin', 'email': 'admin@example.com', 'password': 'admin124', 'role': 'admin'},
-        {'name': 'Supervisor', 'email': 'supervisor@example.com', 'password': '123', 'role': 'supervisor'},
-        {'name': 'Manager', 'email': 'manager@example.com', 'password': '123', 'role': 'manager'},
-        {'name': 'User ', 'email': 'user@gmail.com', 'password': '123', 'role': 'user'},
-    ]
 
-    for user_data in users:
-        # Check if the user already exists
-        existing_user = User.query.filter_by(email=user_data['email']).first()
-        if existing_user:
-            continue  # Skip if the user already exists
-
-        # Create a new user instance
-        new_user = User(
-            name=user_data['name'],
-            email=user_data['email'],
-            password=generate_password_hash(user_data['password']),  # Hash the password
-            role=user_data['role']
-        )
-        db.session.add(new_user)
-
-    db.session.commit()
-    return "Users added successfully!"
 
 # Custom decorators for role-based access control
 def admin_required(f):
@@ -476,13 +436,10 @@ def categories():
     """Categories route."""
     log_user_activity('visited categories')
     categories = Category.query.all()
-    products = Product.query.all()
-
     return render_template('categories.html', categories=categories)
 
 @app.route('/categories/add', methods=['POST'])
-#@manager_required
-@login_required
+@manager_required
 def add_category():
     """Add category route."""
     name = request.form.get('name')
@@ -508,54 +465,29 @@ def orders():
     """Orders route."""
     log_user_activity('visited orders')
     
-    # Get filter and pagination parameters from request
+    # Get filter parameters from request
     search = request.args.get('search', '')
     status = request.args.get('status', 'all')
-    page = request.args.get('page', 1, type=int)
-    per_page = 10  # Number of items per page
 
-    # Base query
-    if current_user.role in ['ADMIN', 'SUPERVISOR', 'MANAGER']:
-        query = Order.query.join(User).add_columns(User.name, User.role)
+    if current_user.role in ['ADMIN','SUPERVISOR', 'MANAGER']:
+        # Fetch all orders and sort by order ID in descending order
+        orders = Order.query.join(User).add_columns(User.name, User.role).order_by(Order.id.desc()).all()
     else:
-        query = Order.query.filter_by(user_id=current_user.id).join(User).add_columns(User.name, User.role)
-
-    # Apply search filter if provided
-    if search:
-        search_terms = search.lower().split()
-        for term in search_terms:
-            query = query.filter(
-                db.or_(
-                    Order.id.cast(db.String).ilike(f'%{term}%'),
-                    User.name.ilike(f'%{term}%'),
-                    User.role.ilike(f'%{term}%'),
-                    Order.status.ilike(f'%{term}%')
-                )
-            )
-
-    # Apply status filter if provided
-    if status and status != 'all':
-        query = query.filter(Order.status == status.upper())
-
-    # Apply sorting
-    query = query.order_by(Order.id.desc())
-
-    # Paginate results
-    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
-    orders = pagination.items
-
+        # Fetch user's orders and sort by order ID in descending order
+        orders = Order.query.filter_by(user_id=current_user.id).join(User).add_columns(User.name, User.role).order_by(Order.id.desc()).all()
+    
+    # Apply filter
+    filtered_orders = []
+    for order, user_name, user_role in orders:
+        if (search.lower() in str(order.id) or 
+            search.lower() in user_name.lower() or 
+            search.lower() in user_role.lower() or 
+            search.lower() in order.status.lower()):
+            if status == 'all' or status.upper() == order.status:
+                filtered_orders.append((order, user_name, user_role))
+    
     products = Product.query.all()
-    categories = Category.query.all()  # Get all categories
-    return render_template(
-        'orders.html',
-        orders=orders,
-        products=products,
-        categories=categories,  # Pass categories to template
-        search=search,
-        status=status,
-        pagination=pagination,
-        min=min  # Add the min function to the template context
-    )
+    return render_template('orders.html', orders=filtered_orders, products=products, search=search, status=status)
 
 @app.route('/orders/create', methods=['POST'])
 @login_required
@@ -570,7 +502,10 @@ def create_order():
             product_id = key.split('_')[1]
             quantity = int(request.form.get(key))
             
-            # Remove the limit on quantity for order creation
+            # Prevent negative quantities
+            if quantity < 1:
+                flash('Quantity must be at least 1 for all items.', 'error')
+                return redirect(url_for('orders'))
 
             order_item = OrderItem(product_id=product_id, quantity=quantity)
             order.items.append(order_item)
@@ -591,32 +526,6 @@ def create_order():
     flash('Order created successfully')
     return redirect(url_for('orders'))
 
-
-@app.route('/orders/<int:order_id>/details')
-@login_required
-def get_order_details(order_id):
-    """Get order details route."""
-    order = Order.query.get_or_404(order_id)
-    
-    # Get order items with product details
-    items = db.session.query(
-        OrderItem, Product
-    ).join(Product).filter(OrderItem.order_id == order_id).all()
-    
-    # Format the data
-    order_details = {
-        'id': order.id,
-        'status': order.status,
-        'created_at': order.created_at.strftime('%Y-%m-%d %H:%M'),
-        'items': [{
-            'product_name': item.Product.name,
-            'quantity': item.OrderItem.quantity,
-            'price': item.Product.price,
-            'total': item.OrderItem.quantity * item.Product.price
-        } for item in items]
-    }
-    
-    return jsonify(order_details)
 
 @app.route('/orders/<int:order_id>/update-status', methods=['POST'])
 @manager_required
@@ -1219,7 +1128,7 @@ def bulk_upload(type):
                 db.session.add(bus)
             
         elif type == 'product':
-            required_columns = ['name', 'description', 'quantity', 'price', 'category', 'low_stock_threshold']
+            required_columns = ['name', 'description', 'quantity', 'price', 'category_id', 'low_stock_threshold']
             if not all(col in df.columns for col in required_columns):
                 flash('Missing required columns for product data', 'error')
                 return redirect(url_for('bulk_upload_page'))
@@ -1229,6 +1138,7 @@ def bulk_upload(type):
                     # Validate numeric values
                     quantity = int(row['quantity'])
                     price = float(row['price'])
+                    category_id = int(row['category_id'])
                     low_stock_threshold = int(row['low_stock_threshold'])
                     
                     if quantity < 0:
@@ -1241,10 +1151,9 @@ def bulk_upload(type):
                         flash(f'Product {row["name"]}: Low stock threshold cannot be negative', 'error')
                         continue
                         
-                    # Get category by name
-                    category = Category.query.filter_by(name=row['category']).first()
-                    if not category:
-                        flash(f'Product {row["name"]}: Category "{row["category"]}" does not exist', 'error')
+                    # Check if category exists
+                    if not Category.query.get(category_id):
+                        flash(f'Product {row["name"]}: Category ID {category_id} does not exist', 'error')
                         continue
                     
                     # Check for duplicate product name
@@ -1257,7 +1166,7 @@ def bulk_upload(type):
                         description=row['description'],
                         quantity=quantity,
                         price=price,
-                        category_id=category.id,
+                        category_id=category_id,
                         low_stock_threshold=low_stock_threshold
                     )
                     db.session.add(product)
@@ -1308,124 +1217,6 @@ def download_sample(type):
         flash(f'Error downloading sample file: {str(e)}', 'error')
     
     return redirect(url_for('bulk_upload_page'))
-
-@app.route('/products/<int:category_id>', methods=['GET'])
-def get_products_by_category(category_id):
-    """Fetch products for a specific category."""
-    products = Product.query.filter_by(category_id=category_id).all()  # Adjust based on your ORM
-    return jsonify({'products': [{'id': product.id, 'name': product.name} for product in products]})
-
-@app.route('/fuel-consumption', methods=['GET'])
-@login_required
-def fuel_consumption():
-    """Fuel consumption management page."""
-    buses = Bus.query.all()
-    
-    # Calculate last week consumption and total mileage for each bus
-    one_week_ago = datetime.utcnow() - timedelta(days=7)
-    
-    for bus in buses:
-        # Get all fuel records for this bus
-        fuel_records = Fuel.query.filter_by(bus_id=bus.id).order_by(Fuel.date.desc()).all()
-        
-        # Calculate total fuel consumption
-        bus.total_fuel_consumption = sum(record.fuel_amount for record in fuel_records)
-        
-        # Calculate current mileage (km/L) from the last two records
-        if len(fuel_records) >= 2:
-            latest_record = fuel_records[0]
-            prev_record = fuel_records[1]
-            distance = latest_record.reading - prev_record.reading
-            bus.current_mileage = distance / latest_record.fuel_amount if latest_record.fuel_amount > 0 else 0
-        else:
-            bus.current_mileage = 0
-    
-    return render_template('fuel_consumption.html', buses=buses)
-
-
-@app.route('/fuel-logs')
-@login_required
-def fuel_logs():
-    """View all fuel consumption logs."""
-    fuel_logs = Fuel.query.order_by(Fuel.date.desc()).all()
-    return render_template('fuel_logs.html', fuel_logs=fuel_logs)
-
-
-
-
-@app.route('/add-fuel-consumption', methods=['POST'])
-@login_required
-def add_fuel_consumption():
-    """Add new fuel consumption record."""
-    try:
-        bus_id = request.form.get('bus_id')
-        fuel_amount = float(request.form.get('fuel_amount'))
-        reading = float(request.form.get('reading'))
-        date_str = request.form.get('date')
-        
-        if not all([bus_id, fuel_amount, reading, date_str]):
-            flash('All fields are required', 'error')
-            return redirect(url_for('fuel_consumption'))
-        
-        date = datetime.strptime(date_str, '%Y-%m-%d')
-        
-        # Get the last fuel record for this bus to calculate distance traveled
-        last_record = Fuel.query.filter_by(bus_id=bus_id).order_by(Fuel.date.desc()).first()
-        
-        fuel_record = Fuel(
-            bus_id=bus_id,
-            fuel_amount=fuel_amount,
-            reading=reading,
-            date=date,
-            created_by=current_user.id
-        )
-        
-        db.session.add(fuel_record)
-        db.session.commit()
-        
-        # Calculate and display mileage if there's a previous record
-        if last_record:
-            distance = reading - last_record.reading
-            mileage = distance / fuel_amount if fuel_amount > 0 else 0
-            flash(f'Fuel consumption record added successfully. Distance: {distance:.2f} km, Mileage: {mileage:.2f} km/L')
-        else:
-            flash('First fuel consumption record added successfully')
-            
-        return redirect(url_for('fuel_consumption'))
-        
-    except ValueError as e:
-        flash(f'Invalid input: {str(e)}', 'error')
-        return redirect(url_for('fuel_consumption'))
-
-@app.route('/fuel-history/<int:bus_id>')
-@login_required
-def fuel_history(bus_id):
-    """Get fuel consumption history for a specific bus."""
-    records = Fuel.query.filter_by(bus_id=bus_id).order_by(Fuel.date.desc()).all()
-    
-    history = []
-    for i, record in enumerate(records):
-        entry = {
-            'date': record.date.strftime('%Y-%m-%d %H:%M'),
-            'fuel_amount': record.fuel_amount,
-            'reading': record.reading
-        }
-        
-        # Calculate mileage if there's a next record (previous chronologically)
-        if i < len(records) - 1:
-            next_record = records[i + 1]
-            distance = record.reading - next_record.reading
-            mileage = distance / record.fuel_amount if record.fuel_amount > 0 else 0
-            entry['distance'] = f"{distance:.2f} km"
-            entry['mileage'] = f"{mileage:.2f} km/L"
-        else:
-            entry['distance'] = "N/A"
-            entry['mileage'] = "N/A"
-            
-        history.append(entry)
-    
-    return jsonify({'history': history})
-
 
 if __name__ == '__main__':
     with app.app_context():

@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="page-header">
+        <h1 class="page-title">Edit User</h1>
+        <div class="page-actions">
+            <a href="{{ url_for('users') }}" class="btn-secondary">
+                <i class="fas fa-arrow-left mr-2"></i>
+                Back to Users
+            </a>
+        </div>
+    </div>
+
+    <div class="content-card max-w-2xl mx-auto">
+        <div class="p-6">
+            <form action="{{ url_for('edit_user', user_id=user.id) }}" method="POST" class="space-y-6">
+                <div class="grid grid-cols-1 gap-6">
+                    <!-- Name Field -->
+                    <div>
+                        <label for="name" class="block text-sm font-medium text-gray-700">Name</label>
+                        <div class="mt-1 relative">
+                            <i class="fas fa-user absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                            <input type="text" name="name" id="name" value="{{ user.name }}" required 
+                                class="input-field pl-10" 
+                                placeholder="Enter user's full name">
+                        </div>
+                    </div>
+
+                    <!-- Email Field -->
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+                        <div class="mt-1 relative">
+                            <i class="fas fa-envelope absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                            <input type="email" name="email" id="email" value="{{ user.email }}" required 
+                                class="input-field pl-10" 
+                                placeholder="Enter user's email address">
+                        </div>
+                    </div>
+
+                    <!-- Role Field -->
+                    <div>
+                        <label for="role" class="block text-sm font-medium text-gray-700">Role</label>
+                        <div class="mt-1 relative">
+                            <i class="fas fa-user-tag absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                            <select name="role" id="role" required class="input-field pl-10">
+                                <option value="ADMIN" {% if user.role == 'ADMIN' %}selected{% endif %}>Admin</option>
+                                <option value="MANAGER" {% if user.role == 'MANAGER' %}selected{% endif %}>Manager</option>
+                                <option value="SUPERVISOR" {% if user.role == 'SUPERVISOR' %}selected{% endif %}>Supervisor</option>
+                                <option value="USER" {% if user.role == 'USER' %}selected{% endif %}>User</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Role Descriptions -->
+                <div class="bg-gray-50 rounded-lg p-4 space-y-3">
+                    <h3 class="text-sm font-medium text-gray-700">Current Role Permissions:</h3>
+                    <div class="flex items-start space-x-3">
+                        <div class="mt-0.5">
+                            <i class="fas fa-{% if user.role == 'ADMIN' %}shield-alt text-purple-600
+                                    {% elif user.role == 'MANAGER' %}chart-line text-blue-600
+                                    {% elif user.role == 'SUPERVISOR' %}clipboard-check text-green-600
+                                    {% else %}user text-gray-600{% endif %}"></i>
+                        </div>
+                        <div>
+                            <span class="font-medium text-gray-900">{{ user.role.title() }}</span>
+                            <p class="text-gray-500">
+                                {% if user.role == 'ADMIN' %}
+                                    Full system access and management
+                                {% elif user.role == 'MANAGER' %}
+                                    Inventory and order management
+                                {% elif user.role == 'SUPERVISOR' %}
+                                    Order approval and team management
+                                {% else %}
+                                    Basic system access and operations
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end space-x-3">
+                    <a href="{{ url_for('users') }}" class="btn-secondary">
+                        Cancel
+                    </a>
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-save mr-2"></i>
+                        Update User
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

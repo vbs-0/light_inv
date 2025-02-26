@@ -1,0 +1,507 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header with Search and Filters -->
+    <div class="bg-white p-4 rounded-lg shadow-sm">
+        <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+            <!-- Search Bar -->
+            <div class="relative flex-1">
+                <input type="text" 
+                       id="orderSearch" 
+                       placeholder="Search orders..." 
+                       value="{{ search }}"
+                       class="w-full pl-10 pr-4 py-2 border rounded-lg">
+                <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+            </div>
+            
+            <!-- Quick Filters -->
+            <div class="flex gap-2">
+                <select id="statusFilter" class="border rounded-lg px-3 py-2">
+                    <option value="all" {% if status == 'all' %}selected{% endif %}>All Status</option>
+                    <option value="pending" {% if status == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="approved" {% if status == 'approved' %}selected{% endif %}>Approved</option>
+                    <option value="rejected" {% if status == 'rejected' %}selected{% endif %}>Rejected</option>
+                </select>
+                
+                {% if current_user.role in ['MANAGER','SUPERVISOR'] %}
+                <button type="button" id="createOrderBtn"
+                        class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                    <i class="fas fa-plus mr-2"></i>Create Order
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Orders Table -->
+    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+        <table class="min-w-full">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order ID</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created By</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+                {% for order, user_name, user_role in orders %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4">#{{ order.id }}</td>
+                    <td class="px-6 py-4">{{ user_name }} ({{ user_role }})</td>
+                    <td class="px-6 py-4">
+                        <span class="px-2 py-1 text-sm rounded-full
+                            {% if order.status == 'PENDING' %}bg-yellow-100 text-yellow-800
+                            {% elif order.status == 'APPROVED' %}bg-green-100 text-green-800
+                            {% elif order.status == 'REJECTED' %}bg-red-100 text-red-800
+                            {% endif %}">
+                            {{ order.status }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4">{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td class="px-6 py-4">
+                        <div class="flex gap-2">
+                            {% if current_user.role in ['MANAGER'] and order.status == 'PENDING' %}
+                            <button type="button" 
+                                    data-action="approve"
+                                    data-order-id="{{ order.id }}"
+                                    class="action-btn px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                                Approve
+                            </button>
+                            <button type="button"
+                                    data-action="reject"
+                                    data-order-id="{{ order.id }}"
+                                    class="action-btn px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                                Reject
+                            </button>
+                            {% endif %}
+                            <button type="button"
+                                    data-action="details"
+                                    data-order-id="{{ order.id }}"
+                                    class="action-btn px-3 py-1 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
+                                Details
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <!-- Pagination Controls -->
+        {% if pagination %}
+        <div class="px-6 py-4 bg-gray-50 border-t">
+            <div class="flex items-center justify-between">
+                <div class="text-sm text-gray-700">
+                    Showing {{ (pagination.page - 1) * pagination.per_page + 1 }} 
+                    to {{ min(pagination.page * pagination.per_page, pagination.total) }} 
+                    of {{ pagination.total }} entries
+                </div>
+                <div class="flex space-x-2">
+                    {% if pagination.has_prev %}
+                    <a href="{{ url_for('orders', page=pagination.prev_num, search=search, status=status) }}" 
+                       class="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
+                        Previous
+                    </a>
+                    {% endif %}
+                    
+                    {% for page_num in pagination.iter_pages(left_edge=2, left_current=2, right_current=2, right_edge=2) %}
+                        {% if page_num %}
+                            {% if page_num == pagination.page %}
+                            <span class="px-3 py-1 bg-blue-600 text-white rounded-lg">
+                                {{ page_num }}
+                            </span>
+                            {% else %}
+                            <a href="{{ url_for('orders', page=page_num, search=search, status=status) }}" 
+                               class="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
+                                {{ page_num }}
+                            </a>
+                            {% endif %}
+                        {% else %}
+                            <span class="px-3 py-1">...</span>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if pagination.has_next %}
+                    <a href="{{ url_for('orders', page=pagination.next_num, search=search, status=status) }}" 
+                       class="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
+                        Next
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Order Details Modal -->
+    <div id="orderDetailsModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50" onclick="closeDetailsModal(event)">
+        <div class="fixed inset-0 flex items-center justify-center p-4">
+            <div class="bg-white rounded-lg shadow-xl w-full max-w-xl">
+                <div class="p-4 border-b flex justify-between items-center">
+                    <h3 class="text-lg font-medium">Order Details</h3>
+                    <button type="button" id="closeDetailsModalBtn" class="text-gray-400 hover:text-gray-500">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="p-4 max-h-[50vh] overflow-y-auto">
+                    <div class="mb-4">
+                        <div class="flex justify-between mb-2">
+                            <span class="font-medium">Order ID:</span>
+                            <span id="detailsOrderId"></span>
+                        </div>
+                        <div class="flex justify-between mb-2">
+                            <span class="font-medium">Status:</span>
+                            <span id="detailsStatus"></span>
+                        </div>
+                        <div class="flex justify-between mb-2">
+                            <span class="font-medium">Created At:</span>
+                            <span id="detailsCreatedAt"></span>
+                        </div>
+                    </div>
+                    <div class="border-t pt-4">
+                        <h4 class="font-medium mb-2">Items</h4>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full">
+                                <thead>
+                                    <tr class="bg-gray-50">
+                                        <th class="px-4 py-2 text-left">Product</th>
+                                        <th class="px-4 py-2 text-right">Quantity</th>
+                                        <th class="px-4 py-2 text-right">Price</th>
+                                        <th class="px-4 py-2 text-right">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="detailsItems"></tbody>
+                                <tfoot>
+                                    <tr class="border-t">
+                                        <td colspan="3" class="px-4 py-2 text-right font-medium">Grand Total:</td>
+                                        <td class="px-4 py-2 text-right font-medium" id="detailsTotal"></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Order Modal -->
+    <div id="createOrderModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50">
+        <div class="fixed inset-0 flex items-center justify-center p-4">
+            <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl">
+                <!-- Modal Header -->
+                <div class="p-4 border-b flex justify-between items-center">
+                    <h3 class="text-lg font-medium">Create New Order</h3>
+                    <button type="button" id="closeModalBtn" class="text-gray-400 hover:text-gray-500">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <!-- Modal Body -->
+                <div class="p-4">
+                    <form id="orderForm" method="POST" action="{{ url_for('create_order') }}">
+                        <!-- Product Search -->
+                        <div class="mb-4">
+                            <div class="flex gap-4">
+                                <div class="flex-1">
+                                    <input type="text" 
+                                           id="productSearch" 
+                                           placeholder="Search products..." 
+                                           class="w-full px-4 py-2 border rounded-lg">
+                                </div>
+                                <select id="categoryFilter" class="border rounded-lg px-3 py-2">
+                                    <option value="">All Categories</option>
+                                    {% for category in categories %}
+                                    <option value="{{ category.id }}">{{ category.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Products Grid -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <!-- Available Products -->
+                            <div class="border rounded-lg p-4">
+                                <h4 class="font-medium mb-2">Available Products</h4>
+                                <div class="max-h-96 overflow-y-auto space-y-2">
+                                    {% for product in products %}
+                                    <div class="product-item flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg"
+                                         data-name="{{ product.name }}"
+                                         data-category="{{ product.category_id }}">
+                                        <div>
+                                            <div class="font-medium">{{ product.name }}</div>
+                                            <div class="text-sm text-gray-500">Stock: {{ product.quantity }}</div>
+                                        </div>
+                                        <button type="button"
+                                                data-product-id="{{ product.id }}"
+                                                data-product-name="{{ product.name }}"
+                                                data-product-stock="{{ product.quantity }}"
+                                                class="add-product-btn px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">
+                                            Add
+                                        </button>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <!-- Selected Products -->
+                            <div class="border rounded-lg p-4">
+                                <h4 class="font-medium mb-2">Selected Products</h4>
+                                <div id="selectedProducts" class="max-h-96 overflow-y-auto space-y-2"></div>
+                            </div>
+                        </div>
+
+                        <!-- Submit Buttons -->
+                        <div class="flex justify-end gap-2">
+                            <button type="button" 
+                                    id="cancelOrderBtn"
+                                    class="px-4 py-2 border text-gray-700 rounded-lg hover:bg-gray-50">
+                                Cancel
+                            </button>
+                            <button type="submit"
+                                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                                Create Order
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // Modal controls
+            document.getElementById('createOrderBtn').addEventListener('click', openCreateOrder);
+            document.getElementById('closeModalBtn').addEventListener('click', closeCreateOrder);
+            document.getElementById('cancelOrderBtn').addEventListener('click', closeCreateOrder);
+
+            // Action buttons
+            document.querySelectorAll('.action-btn').forEach(btn => {
+                btn.addEventListener('click', handleAction);
+            });
+
+            // Add product buttons
+            document.querySelectorAll('.add-product-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const id = this.dataset.productId;
+                    const name = this.dataset.productName;
+                    const stock = parseInt(this.dataset.productStock);
+                    addProduct(id, name, stock);
+                });
+            });
+
+            // Search and filters
+            let searchTimeout;
+            document.getElementById('orderSearch').addEventListener('input', function() {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(filterOrders, 500); // Wait 500ms after last keystroke
+            });
+            document.getElementById('statusFilter').addEventListener('change', filterOrders);
+
+            // Product search in modal
+            document.getElementById('productSearch').addEventListener('input', filterProducts);
+            document.getElementById('categoryFilter').addEventListener('change', filterProducts);
+        });
+
+        // Modal Functions
+        function openCreateOrder() {
+            document.getElementById('createOrderModal').classList.remove('hidden');
+        }
+
+        function closeCreateOrder() {
+            document.getElementById('createOrderModal').classList.add('hidden');
+        }
+
+        // Action Handlers
+        function handleAction(e) {
+            const action = e.target.dataset.action;
+            const orderId = e.target.dataset.orderId;
+
+            switch(action) {
+                case 'approve':
+                    updateStatus(orderId, 'APPROVED');
+                    break;
+                case 'reject':
+                    updateStatus(orderId, 'REJECTED');
+                    break;
+                case 'details':
+                    viewDetails(orderId);
+                    break;
+            }
+        }
+
+        // Product Management
+        const selectedProducts = new Map();
+
+        function addProduct(id, name, maxStock) {
+            if (!selectedProducts.has(id)) {
+                selectedProducts.set(id, { name, quantity: 1, maxStock });
+                updateSelectedProducts();
+            }
+        }
+
+        function updateQuantity(id, delta) {
+            const product = selectedProducts.get(id);
+            const newQuantity = product.quantity + delta;
+            
+            if (newQuantity > 0) {
+                product.quantity = newQuantity;
+                updateSelectedProducts();
+            }
+        }
+
+        function removeProduct(id) {
+            selectedProducts.delete(id);
+            updateSelectedProducts();
+        }
+
+        function updateSelectedProducts() {
+            const container = document.getElementById('selectedProducts');
+            container.innerHTML = '';
+            
+            selectedProducts.forEach((product, id) => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center justify-between p-2 bg-gray-50 rounded-lg';
+                div.innerHTML = `
+                    <div class="font-medium">${product.name}</div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" class="quantity-btn" data-id="${id}" data-delta="-1"
+                                class="px-2 text-gray-600 hover:text-gray-800">-</button>
+                        <input type="number" name="quantity_${id}" value="${product.quantity}"
+                               min="1"
+                               class="w-16 text-center border rounded px-2 py-1">
+                        <button type="button" class="quantity-btn" data-id="${id}" data-delta="1"
+                                class="px-2 text-gray-600 hover:text-gray-800">+</button>
+                        <button type="button" class="remove-btn" data-id="${id}"
+                                class="ml-2 text-red-600 hover:text-red-800">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(div);
+
+                // Add event listeners to the new buttons
+                div.querySelectorAll('.quantity-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        updateQuantity(this.dataset.id, parseInt(this.dataset.delta));
+                    });
+                });
+
+                div.querySelectorAll('.remove-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        removeProduct(this.dataset.id);
+                    });
+                });
+            });
+        }
+
+        // Filter Functions
+        function filterOrders() {
+            const searchTerm = document.getElementById('orderSearch').value;
+            const status = document.getElementById('statusFilter').value;
+            
+            // Build the URL with query parameters
+            const url = new URL(window.location.href);
+            url.searchParams.set('search', searchTerm);
+            url.searchParams.set('status', status);
+            url.searchParams.set('page', '1'); // Reset to first page when searching
+            
+            // Redirect to the new URL which will load filtered results
+            window.location.href = url.toString();
+        }
+
+        function filterProducts() {
+            const searchTerm = document.getElementById('productSearch').value.toLowerCase();
+            const category = document.getElementById('categoryFilter').value;
+            
+            document.querySelectorAll('.product-item').forEach(item => {
+                const name = item.dataset.name.toLowerCase();
+                const productCategory = item.dataset.category;
+                
+                const matchesSearch = name.includes(searchTerm);
+                const matchesCategory = !category || productCategory === category;
+                
+                item.style.display = matchesSearch && matchesCategory ? '' : 'none';
+            });
+        }
+
+        // API Functions
+        function updateStatus(orderId, status) {
+            fetch(`/orders/${orderId}/update-status`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `status=${status}`
+            }).then(() => window.location.reload());
+        }
+
+        function viewDetails(orderId) {
+            fetch(`/orders/${orderId}/details`)
+                .then(response => response.json())
+                .then(data => {
+                    // Update modal content
+                    document.getElementById('detailsOrderId').textContent = `#${data.id}`;
+                    document.getElementById('detailsStatus').textContent = data.status;
+                    document.getElementById('detailsCreatedAt').textContent = data.created_at;
+                    
+                    // Update items table
+                    const itemsContainer = document.getElementById('detailsItems');
+                    itemsContainer.innerHTML = '';
+                    let grandTotal = 0;
+                    
+                    data.items.forEach(item => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td class="px-3 py-1 text-sm">${item.product_name}</td>
+                            <td class="px-3 py-1 text-right text-sm">${item.quantity}</td>
+                            <td class="px-3 py-1 text-right text-sm">₹${item.price.toFixed(2)}</td>
+                            <td class="px-3 py-1 text-right text-sm">₹${item.total.toFixed(2)}</td>
+                        `;
+                        itemsContainer.appendChild(row);
+                        grandTotal += item.total;
+                    });
+                    
+                    document.getElementById('detailsTotal').textContent = `₹${grandTotal.toFixed(2)}`;
+                    
+                    // Show modal
+                    document.getElementById('orderDetailsModal').classList.remove('hidden');
+                });
+        }
+
+        // Close details modal function
+        function closeDetailsModal(event) {
+            const modal = document.getElementById('orderDetailsModal');
+            const modalContent = modal.querySelector('.bg-white');
+            if (!modalContent.contains(event.target)) {
+                modal.classList.add('hidden');
+            }
+        }
+
+        // Close details modal
+        document.getElementById('closeDetailsModalBtn').addEventListener('click', function() {
+            document.getElementById('orderDetailsModal').classList.add('hidden');
+        });
+
+        // Close details modal on outside click
+        document.getElementById('orderDetailsModal').addEventListener('click', function(event) {
+            if (event.target === this) {
+                this.classList.add('hidden');
+            }
+        });
+
+        // Close modal on outside click
+        window.onclick = function(event) {
+            const modal = document.getElementById('createOrderModal');
+            if (event.target === modal) {
+                closeCreateOrder();
+            }
+        }
+    </script>
+</div>
+{% endblock %}

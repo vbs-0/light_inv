@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="page-header">
+        <h1 class="page-title">Fuel Consumption Logs</h1>
+    </div>
+
+    <div class="content-card p-6">
+        <!-- Search and Filter -->
+        <div class="flex justify-between items-center mb-4">
+            <div class="flex space-x-4">
+                <input type="text" id="searchInput" placeholder="Search logs..." 
+                       class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                <input type="date" id="dateFilter" 
+                       class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+            </div>
+        </div>
+
+        <!-- Logs Table -->
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bus Number</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fuel Amount (L)</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reading (km)</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Distance (km)</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mileage (km/L)</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Added By</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200" id="logsTableBody">
+                    {% for log in fuel_logs %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ log.date.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ log.bus.bus_number_plate }} ({{ log.bus.bus_number }})</td>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ log.fuel_amount }} L</td>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ log.reading }} km</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if not loop.last %}
+                                {% set prev_log = fuel_logs[loop.index] %}
+                                {{ "%.2f"|format(log.reading - prev_log.reading) }} km
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if not loop.last %}
+                                {% set prev_log = fuel_logs[loop.index] %}
+                                {% set distance = log.reading - prev_log.reading %}
+                                {{ "%.2f"|format(distance / log.fuel_amount) if log.fuel_amount > 0 else "N/A" }} km/L
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">{{ log.user.name }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="mt-4 flex items-center justify-between">
+            <div class="flex-1 flex justify-between sm:hidden">
+                <button onclick="previousPage()" class="btn-secondary">Previous</button>
+                <button onclick="nextPage()" class="btn-secondary">Next</button>
+            </div>
+            <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div>
+                    <p class="text-sm text-gray-700">
+                        Showing page <span id="currentPage">1</span> of <span id="totalPages">{{ (fuel_logs|length / 15)|round(0, 'ceil')|int }}</span>
+                    </p>
+                </div>
+                <div>
+                    <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                        <button onclick="previousPage()" class="btn-secondary">Previous</button>
+                        <button onclick="nextPage()" class="btn-secondary">Next</button>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const itemsPerPage = 15;
+let currentPage = 1;
+let filteredLogs = [];
+
+function updatePagination() {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const rows = document.querySelectorAll('#logsTableBody tr');
+    
+    rows.forEach((row, index) => {
+        if (index >= startIndex && index < endIndex) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+    
+    document.getElementById('currentPage').textContent = currentPage;
+}
+
+function previousPage() {
+    if (currentPage > 1) {
+        currentPage--;
+        updatePagination();
+    }
+}
+
+function nextPage() {
+    const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
+    if (currentPage < totalPages) {
+        currentPage++;
+        updatePagination();
+    }
+}
+
+document.getElementById('searchInput').addEventListener('input', function(e) {
+    const searchText = e.target.value.toLowerCase();
+    const rows = document.querySelectorAll('#logsTableBody tr');
+    
+    filteredLogs = Array.from(rows).filter(row => {
+        const text = row.textContent.toLowerCase();
+        const visible = text.includes(searchText);
+        row.style.display = visible ? '' : 'none';
+        return visible;
+    });
+    
+    currentPage = 1;
+    updatePagination();
+});
+
+document.getElementById('dateFilter').addEventListener('change', function(e) {
+    const filterDate = e.target.value;
+    const rows = document.querySelectorAll('#logsTableBody tr');
+    
+    filteredLogs = Array.from(rows).filter(row => {
+        const date = row.children[0].textContent.split(' ')[0];
+        const visible = !filterDate || date === filterDate;
+        row.style.display = visible ? '' : 'none';
+        return visible;
+    });
+    
+    currentPage = 1;
+    updatePagination();
+});
+
+// Initialize pagination
+updatePagination();
+</script>
+{% endblock %}

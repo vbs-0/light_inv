@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-[80vh] flex items-center justify-center">
+    <div class="text-center space-y-6 max-w-lg mx-auto px-4">
+        <div class="space-y-4">
+            <div class="text-red-600 text-9xl font-bold">
+                <i class="fas fa-exclamation-circle"></i>
+            </div>
+            <h1 class="text-4xl font-bold text-gray-900">Internal Server Error</h1>
+            <p class="text-lg text-gray-600">
+                Something went wrong on our end. Our team has been notified and is working to fix the issue.
+            </p>
+        </div>
+
+        <div class="flex flex-col sm:flex-row items-center justify-center space-y-3 sm:space-y-0 sm:space-x-4">
+            <a href="{{ url_for('dashboard') }}" class="btn-primary w-full sm:w-auto">
+                <i class="fas fa-home mr-2"></i>
+                Back to Dashboard
+            </a>
+            <button onclick="location.reload()" class="btn-secondary w-full sm:w-auto">
+                <i class="fas fa-sync-alt mr-2"></i>
+                Try Again
+            </button>
+        </div>
+
+        <div class="pt-8 border-t border-gray-200">
+            <div class="space-y-2">
+                <p class="text-sm text-gray-500">
+                    Error Code: 500
+                </p>
+                <p class="text-sm text-gray-500">
+                    If this issue persists, please contact your system administrator.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
