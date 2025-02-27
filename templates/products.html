@@ -94,10 +94,10 @@
                                 {% endif %}
 
                                 {% if current_user.role in ['SUPERVISOR','MANAGER','ADMIN'] %}
-                                <a href="{{ url_for('edit_product', product_id=product.id) }}" class="btn-secondary">
+                                <button onclick="window.location.href='{{ url_for('edit_product', product_id=product.id) }}'" class="btn-secondary rounded-lg px-2 py-0">
                                     <i class="fas fa-edit mr-1"></i>
                                     Edit
-                                </a>
+                                </button>
                                 {% endif %}
                                 
                             </div>

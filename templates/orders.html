@@ -17,14 +17,14 @@
             
             <!-- Quick Filters -->
             <div class="flex gap-2">
-                <select id="statusFilter" class="border rounded-lg px-3 py-2">
+                <select id="statusFilter" class="border rounded-lg px-3z py-2">
                     <option value="all" {% if status == 'all' %}selected{% endif %}>All Status</option>
                     <option value="pending" {% if status == 'pending' %}selected{% endif %}>Pending</option>
                     <option value="approved" {% if status == 'approved' %}selected{% endif %}>Approved</option>
                     <option value="rejected" {% if status == 'rejected' %}selected{% endif %}>Rejected</option>
                 </select>
                 
-                {% if current_user.role in ['MANAGER','SUPERVISOR'] %}
+                {% if current_user.role in ['MANAGER', 'SUPERVISOR'] %}
                 <button type="button" id="createOrderBtn"
                         class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
                     <i class="fas fa-plus mr-2"></i>Create Order
@@ -77,12 +77,14 @@
                                 Reject
                             </button>
                             {% endif %}
+                            {% if current_user.role in ['MANAGER', 'SUPERVISOR', 'ADMIN'] %}
                             <button type="button"
                                     data-action="details"
                                     data-order-id="{{ order.id }}"
                                     class="action-btn px-3 py-1 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
                                 Details
                             </button>
+                            {% endif %}
                         </div>
                     </td>
                 </tr>
@@ -276,9 +278,18 @@
         // Initialize event listeners
         document.addEventListener('DOMContentLoaded', function() {
             // Modal controls
-            document.getElementById('createOrderBtn').addEventListener('click', openCreateOrder);
-            document.getElementById('closeModalBtn').addEventListener('click', closeCreateOrder);
-            document.getElementById('cancelOrderBtn').addEventListener('click', closeCreateOrder);
+            const createOrderBtn = document.getElementById('createOrderBtn');
+            if (createOrderBtn) {
+                createOrderBtn.addEventListener('click', openCreateOrder);
+            }
+            const closeModalBtn = document.getElementById('closeModalBtn');
+            const cancelOrderBtn = document.getElementById('cancelOrderBtn');
+            if (closeModalBtn) {
+                closeModalBtn.addEventListener('click', closeCreateOrder);
+            }
+            if (cancelOrderBtn) {
+                cancelOrderBtn.addEventListener('click', closeCreateOrder);
+            }
 
             // Action buttons
             document.querySelectorAll('.action-btn').forEach(btn => {
@@ -297,15 +308,28 @@
 
             // Search and filters
             let searchTimeout;
-            document.getElementById('orderSearch').addEventListener('input', function() {
-                clearTimeout(searchTimeout);
-                searchTimeout = setTimeout(filterOrders, 500); // Wait 500ms after last keystroke
-            });
-            document.getElementById('statusFilter').addEventListener('change', filterOrders);
+            const orderSearch = document.getElementById('orderSearch');
+            const statusFilter = document.getElementById('statusFilter');
+            
+            if (orderSearch) {
+                orderSearch.addEventListener('input', function() {
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(filterOrders, 500); // Wait 500ms after last keystroke
+                });
+            }
+            if (statusFilter) {
+                statusFilter.addEventListener('change', filterOrders);
+            }
 
             // Product search in modal
-            document.getElementById('productSearch').addEventListener('input', filterProducts);
-            document.getElementById('categoryFilter').addEventListener('change', filterProducts);
+            const productSearch = document.getElementById('productSearch');
+            const categoryFilter = document.getElementById('categoryFilter');
+            if (productSearch) {
+                productSearch.addEventListener('input', filterProducts);
+            }
+            if (categoryFilter) {
+                categoryFilter.addEventListener('change', filterProducts);
+            }
         });
 
         // Modal Functions
@@ -443,16 +467,28 @@
 
         function viewDetails(orderId) {
             fetch(`/orders/${orderId}/details`)
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Permission denied');
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     // Update modal content
-                    document.getElementById('detailsOrderId').textContent = `#${data.id}`;
-                    document.getElementById('detailsStatus').textContent = data.status;
-                    document.getElementById('detailsCreatedAt').textContent = data.created_at;
+                    const detailsOrderId = document.getElementById('detailsOrderId');
+                    const detailsStatus = document.getElementById('detailsStatus');
+                    const detailsCreatedAt = document.getElementById('detailsCreatedAt');
+                    const itemsContainer = document.getElementById('detailsItems');
+                    const detailsTotal = document.getElementById('detailsTotal');
+                    const orderDetailsModal = document.getElementById('orderDetailsModal');
+                    
+                    if (detailsOrderId) detailsOrderId.textContent = `#${data.id}`;
+                    if (detailsStatus) detailsStatus.textContent = data.status;
+                    if (detailsCreatedAt) detailsCreatedAt.textContent = data.created_at;
                     
                     // Update items table
-                    const itemsContainer = document.getElementById('detailsItems');
-                    itemsContainer.innerHTML = '';
+                    if (itemsContainer) {
+                        itemsContainer.innerHTML = '';
                     let grandTotal = 0;
                     
                     data.items.forEach(item => {
@@ -467,10 +503,11 @@
                         grandTotal += item.total;
                     });
                     
-                    document.getElementById('detailsTotal').textContent = `₹${grandTotal.toFixed(2)}`;
+                        if (detailsTotal) detailsTotal.textContent = `₹${grandTotal.toFixed(2)}`;
+                    }
                     
                     // Show modal
-                    document.getElementById('orderDetailsModal').classList.remove('hidden');
+                    if (orderDetailsModal) orderDetailsModal.classList.remove('hidden');
                 });
         }
 
@@ -484,16 +521,25 @@
         }
 
         // Close details modal
-        document.getElementById('closeDetailsModalBtn').addEventListener('click', function() {
-            document.getElementById('orderDetailsModal').classList.add('hidden');
-        });
+        const closeDetailsModalBtn = document.getElementById('closeDetailsModalBtn');
+        const orderDetailsModal = document.getElementById('orderDetailsModal');
+        
+        if (closeDetailsModalBtn) {
+            closeDetailsModalBtn.addEventListener('click', function() {
+                if (orderDetailsModal) {
+                    orderDetailsModal.classList.add('hidden');
+                }
+            });
+        }
 
         // Close details modal on outside click
-        document.getElementById('orderDetailsModal').addEventListener('click', function(event) {
-            if (event.target === this) {
-                this.classList.add('hidden');
-            }
-        });
+        if (orderDetailsModal) {
+            orderDetailsModal.addEventListener('click', function(event) {
+                if (event.target === this) {
+                    this.classList.add('hidden');
+                }
+            });
+        }
 
         // Close modal on outside click
         window.onclick = function(event) {

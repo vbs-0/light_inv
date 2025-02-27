@@ -138,10 +138,10 @@ class Fuel(db.Model):
 def add_users():
     """Add predefined users to the database."""
     users = [
-        {'name': 'Admin', 'email': 'admin@example.com', 'password': 'admin124', 'role': 'admin'},
-        {'name': 'Supervisor', 'email': 'supervisor@example.com', 'password': '123', 'role': 'supervisor'},
-        {'name': 'Manager', 'email': 'manager@example.com', 'password': '123', 'role': 'manager'},
-        {'name': 'User ', 'email': 'user@gmail.com', 'password': '123', 'role': 'user'},
+        {'name': 'Admin', 'email': 'admin@example.com', 'password': 'admin124', 'role': 'ADMIN'},
+        {'name': 'Supervisor', 'email': 'supervisor@example.com', 'password': '123', 'role': 'SUPERVISOR'},
+        {'name': 'Manager', 'email': 'manager@example.com', 'password': '123', 'role': 'MANAGER'},
+        {'name': 'User ', 'email': 'user@gmail.com', 'password': '123', 'role': 'USER'},
     ]
 
     for user_data in users:
@@ -597,6 +597,10 @@ def create_order():
 def get_order_details(order_id):
     """Get order details route."""
     order = Order.query.get_or_404(order_id)
+    
+    # Check if user has permission to view details
+    if current_user.role.upper() not in ['ADMIN', 'SUPERVISOR', 'MANAGER']:
+        return jsonify({'error': 'Permission denied'}), 403
     
     # Get order items with product details
     items = db.session.query(
