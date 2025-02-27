@@ -8,7 +8,7 @@
         <div class="page-actions">
             <button id="addCategoryBtn" class="btn-primary">
                 <i class="fas fa-plus mr-2"></i>
-                Add Category
+                Add New Category
             </button>
         </div>
         {% endif %}
@@ -155,40 +155,63 @@ document.addEventListener('DOMContentLoaded', function() {
         modal.classList.add('hidden');
     }
 
-    addBtn.addEventListener('click', showModal);
-    closeBtn.addEventListener('click', hideModal);
-    cancelBtn.addEventListener('click', hideModal);
+    if (addBtn) {
+        addBtn.addEventListener('click', showModal);
+    }
+
+    if (closeBtn) {
+        closeBtn.addEventListener('click', hideModal);
+    }
+
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', hideModal);
+    }
 
     // Products Popup Logic
     const productsPopup = document.getElementById('productsPopup');
     const closeProductsPopup = document.getElementById('closeProductsPopup');
     const productsList = document.getElementById('productsList');
 
+    // Add event listeners to category names
     document.querySelectorAll('.category-name').forEach(item => {
         item.addEventListener('click', function() {
             const categoryId = this.getAttribute('data-category-id');
+            console.log('Category ID:', categoryId); // Debugging log
+
+            // Fetch products for the selected category
             fetch(`/products/${categoryId}`)
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
                 .then(data => {
-                    productsList.innerHTML = '';
+                    console.log('Fetched Products:', data); // Debugging log
+                    productsList.innerHTML = ''; // Clear previous products
                     data.products.forEach(product => {
                         const productItem = document.createElement('div');
                         productItem.textContent = product.name; // Adjust as needed
                         productsList.appendChild(productItem);
                     });
-                    productsPopup.classList.remove('hidden');
+                    productsPopup.classList.remove('hidden'); // Show the modal
+                })
+                .catch(error => {
+                    console.error('Error fetching products:', error);
                 });
         });
     });
 
-    closeProductsPopup.addEventListener('click', function() {
-        productsPopup.classList.add('hidden');
-    });
+    if (closeProductsPopup) {
+        closeProductsPopup.addEventListener('click', function() {
+            productsPopup.classList.add('hidden'); // Hide the modal
+        });
+    }
 
     // Close popup when clicking outside
     productsPopup.addEventListener('click', function(event) {
         if (event.target === productsPopup) {
-            productsPopup.classList.add('hidden');
+            productsPopup.classList.add('hidden'); // Hide the modal
         }
     });
 });
