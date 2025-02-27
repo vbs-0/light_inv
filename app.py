@@ -748,56 +748,61 @@ def delete_user(user_id):
 
 @app.route('/products/edit/<int:product_id>', methods=['GET', 'POST'])
 @login_required
-#@manager_required
-#@admin_required
-#@supervisor_required
-
 def edit_product(product_id):
     """Edit product route."""
+    if current_user.role not in ['ADMIN', 'MANAGER', 'SUPERVISOR']:
+        flash('You do not have permission to edit products.', 'error')
+        return redirect(url_for('products'))
+
     log_user_activity(f'edited product {product_id}')
     product = Product.query.get_or_404(product_id)
+    
     if request.method == 'POST':
         try:
-            quantity = int(request.form.get('quantity'))
-            price = float(request.form.get('price'))
-            low_stock_threshold = int(request.form.get('low_stock_threshold'))
-            category_id = int(request.form.get('category_id'))
-            
-            # Validate inputs
-            if quantity < 0:
-                flash('Quantity cannot be negative', 'error')
-                return render_template('edit_product.html', product=product, categories=Category.query.all())
-            if price <= 0:
-                flash('Price must be greater than 0', 'error')
-                return render_template('edit_product.html', product=product, categories=Category.query.all())
-            if low_stock_threshold < 0:
-                flash('Low stock threshold cannot be negative', 'error')
-                return render_template('edit_product.html', product=product, categories=Category.query.all())
-            
-            # Check if category exists
-            if not Category.query.get(category_id):
-                flash('Selected category does not exist', 'error')
-                return render_template('edit_product.html', product=product, categories=Category.query.all())
-            
-            product.name = request.form.get('name')
-            product.description = request.form.get('description')
-            product.quantity = quantity
-            product.price = price
-            product.low_stock_threshold = low_stock_threshold
-            product.category_id = category_id
-            
+            # Get form data with role-based permissions
+            if current_user.role == 'ADMIN':
+                product.name = request.form.get('name')
+                product.description = request.form.get('description')
+                product.category_id = int(request.form.get('category_id'))
+                
+                # Validate category
+                if not Category.query.get(product.category_id):
+                    flash('Selected category does not exist', 'error')
+                    return render_template('edit_product.html', product=product, categories=Category.query.all())
+
+            if current_user.role in ['ADMIN', 'MANAGER']:
+                quantity = int(request.form.get('quantity'))
+                low_stock_threshold = int(request.form.get('low_stock_threshold'))
+                
+                # Validate thresholds
+                if low_stock_threshold < 0:
+                    flash('Low stock threshold cannot be negative', 'error')
+                    return render_template('edit_product.html', product=product, categories=Category.query.all())
+                    
+                product.quantity = quantity
+                product.low_stock_threshold = low_stock_threshold
+
+            if current_user.role in ['ADMIN', 'MANAGER', 'SUPERVISOR']:
+                price = float(request.form.get('price'))
+                '''if price <= 0:
+                    flash('Price must be greater than 0', 'error')
+                    return render_template('edit_product.html', product=product, categories=Category.query.all())'''
+                product.price = price
+
             db.session.commit()
             flash('Product updated successfully')
             return redirect(url_for('products'))
             
-        except ValueError:
-            flash('Invalid numeric values', 'error')
+        except ValueError as e:
+            flash(f'Invalid input values: {str(e)}', 'error')
             return render_template('edit_product.html', product=product, categories=Category.query.all())
+            
     categories = Category.query.all()
     return render_template('edit_product.html', product=product, categories=categories)
 
 @app.route('/products/delete/<int:product_id>', methods=['POST'])
 @supervisor_required
+
 def delete_product(product_id):
     """Delete product route."""
     log_user_activity(f'deleted product {product_id}')
@@ -1318,8 +1323,13 @@ def get_products_by_category(category_id):
 @app.route('/fuel-consumption', methods=['GET'])
 @login_required
 def fuel_consumption():
-    """Fuel consumption management page."""
-    buses = Bus.query.all()
+    """Fuel consumption management page with pagination."""
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+    
+    # Get paginated buses
+    pagination = Bus.query.paginate(page=page, per_page=per_page, error_out=False)
+    buses = pagination.items
     
     # Calculate last week consumption and total mileage for each bus
     one_week_ago = datetime.utcnow() - timedelta(days=7)
@@ -1340,15 +1350,31 @@ def fuel_consumption():
         else:
             bus.current_mileage = 0
     
-    return render_template('fuel_consumption.html', buses=buses)
+    return render_template('fuel_consumption.html', 
+                         buses=buses,
+                         page=page,
+                         has_next=pagination.has_next)
 
 
 @app.route('/fuel-logs')
 @login_required
 def fuel_logs():
-    """View all fuel consumption logs."""
-    fuel_logs = Fuel.query.order_by(Fuel.date.desc()).all()
-    return render_template('fuel_logs.html', fuel_logs=fuel_logs)
+    """View all fuel consumption logs with pagination."""
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+    
+    # Get paginated records
+    pagination = Fuel.query.order_by(Fuel.date.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    
+    fuel_logs = pagination.items
+    has_next = pagination.has_next
+    
+    return render_template('fuel_logs.html', 
+                         fuel_logs=fuel_logs,
+                         page=page,
+                         has_next=has_next)
 
 
 
