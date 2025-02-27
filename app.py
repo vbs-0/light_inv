@@ -172,60 +172,6 @@ def admin_required(f):
             return redirect(url_for('dashboard'))
         return f(*args, **kwargs)
     return decorated_function
-'''
-@app.route('/user-activity')
-@admin_required
-def user_activity():
-    """User activity route with pagination, sorting and search."""
-    # Get query parameters
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 10, type=int)
-    search = request.args.get('search', '')
-    sort_by = request.args.get('sort_by', 'timestamp')
-    order = request.args.get('order', 'desc')
-
-    # Base query
-    query = UserActivity.query.join(User)
-
-    # Apply search if provided
-    if search:
-        query = query.filter(
-            db.or_(
-                User.name.ilike(f'%{search}%'),
-                UserActivity.action.ilike(f'%{search}%')
-            )
-        )
-
-    # Apply sorting
-    if sort_by == 'user':
-        if order == 'asc':
-            query = query.order_by(User.name.asc())
-        else:
-            query = query.order_by(User.name.desc())
-    elif sort_by == 'action':
-        if order == 'asc':
-            query = query.order_by(UserActivity.action.asc())
-        else:
-            query = query.order_by(UserActivity.action.desc())
-    else:  # Default sort by timestamp
-        if order == 'asc':
-            query = query.order_by(UserActivity.timestamp.asc())
-        else:
-            query = query.order_by(UserActivity.timestamp.desc())
-
-    # Paginate results
-    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
-    activities = pagination.items
-
-    return render_template(
-        'user_activity.html',
-        activities=activities,
-        pagination=pagination,
-        search=search,
-        sort_by=sort_by,
-        order=order
-    )
-'''
 
 def manager_required(f):
     """Decorator for manager-only access."""
@@ -247,11 +193,20 @@ def supervisor_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-def log_user_activity(action):
-    """Function to log user activity."""
+def log_user_activity(action, details=None):
+    """Function to log user activity with detailed description."""
+    if details:
+        action = f"{action}: {details}"
     activity = UserActivity(user_id=current_user.id, action=action)
     db.session.add(activity)
     db.session.commit()
+
+def format_db_action(action_type, item_type, item_name, extra_info=None):
+    """Helper to format database action messages consistently."""
+    msg = f"DB {action_type}: {item_type} '{item_name}'"
+    if extra_info:
+        msg += f" - {extra_info}"
+    return msg
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -402,9 +357,39 @@ def add_user():
 def products():
     """Products route."""
     log_user_activity('visited products')
-    products = Product.query.all()
+    
+    # Get search parameters
+    search = request.args.get('search', '')
+    category_id = request.args.get('category', type=int)
+    
+    # Base query
+    query = Product.query
+    
+    # Apply category filter if provided
+    if category_id:
+        query = query.filter(Product.category_id == category_id)
+    
+    # Apply search if provided
+    if search:
+        search_terms = search.lower().split()
+        for term in search_terms:
+            query = query.filter(
+                db.or_(
+                    Product.name.ilike(f'%{term}%'),
+                    Product.description.ilike(f'%{term}%')
+                )
+            )
+    
+    # Get all products and categories
+    products = query.all()
     categories = Category.query.all()
-    return render_template('products.html', products=products, categories=categories)
+    
+    return render_template('products.html', 
+        products=products, 
+        categories=categories,
+        search=search,
+        selected_category=category_id
+    )
 
 @app.route('/products/add', methods=['POST'])
 def add_product():
@@ -420,7 +405,11 @@ def add_product():
                 
             product = Product.query.get(product_id)
             if product:
+                old_quantity = product.quantity
                 product.quantity += quantity
+                db.session.commit()
+                log_user_activity('DB UPDATE', format_db_action('UPDATE', 'Product', product.name, 
+                    f"Quantity updated from {old_quantity} to {product.quantity}"))
                 flash('Product quantity updated successfully')
             else:
                 flash('Product not found', 'error')
@@ -462,12 +451,13 @@ def add_product():
                 low_stock_threshold=low_stock_threshold
             )
             db.session.add(product)
+            db.session.commit()
+            log_user_activity('DB CREATE', format_db_action('CREATE', 'Product', name, 
+                f"Qty: {quantity}, Price: ₹{price}, Category: {Category.query.get(category_id).name}, Low Stock Threshold: {low_stock_threshold}"))
             flash('New product added successfully')
         except ValueError:
             flash('Invalid input values', 'error')
             return redirect(url_for('products'))
-    
-    db.session.commit()
     return redirect(url_for('products'))
 
 @app.route('/categories')
@@ -497,9 +487,8 @@ def add_category():
     category = Category(name=name, description=description)
     db.session.add(category)
     db.session.commit()
-    
+    log_user_activity('DB CREATE', format_db_action('CREATE', 'Category', name))
     flash('Category added successfully')
-    log_user_activity(f'added category {category.name}')
     return redirect(url_for('categories'))
 
 @app.route('/orders')
@@ -584,9 +573,16 @@ def create_order():
                                           description=f'Order created for {quantity} of {product.name}')
                 db.session.add(expenditure)
 
+    # Calculate total order value
+    total_value = sum(item.quantity * Product.query.get(item.product_id).price for item in order.items)
+    
     db.session.add(order)
     db.session.commit()
-    log_user_activity(f'created order with {len(order.items)} items')
+    
+    # Log order creation with details
+    items_detail = [f"{Product.query.get(item.product_id).name} (x{item.quantity})" for item in order.items]
+    log_user_activity('DB CREATE', format_db_action('CREATE', 'Order', f"#{order.id}",
+        f"Items: {', '.join(items_detail)} | Total Value: ₹{total_value:.2f}"))
     
     flash('Order created successfully')
     return redirect(url_for('orders'))
@@ -630,9 +626,11 @@ def update_order_status(order_id):
     status = request.form.get('status')
     
     if status in ['PENDING', 'APPROVED', 'REJECTED', 'COMPLETED']:
+        old_status = order.status
         order.status = status
         db.session.commit()
-        log_user_activity(f'updated order {order_id} status to {status}')
+        log_user_activity('DB UPDATE', format_db_action('UPDATE', 'Order', f"#{order.id}",
+            f"Status changed: {old_status} -> {status}"))
         flash('Order status updated successfully')
     
     return redirect(url_for('orders'))
@@ -731,10 +729,23 @@ def edit_user(user_id):
     log_user_activity(f'edited user {user_id}')
     user = User.query.get_or_404(user_id)
     if request.method == 'POST':
+        changes = []
+        if user.name != request.form.get('name'):
+            changes.append(f"Name: {user.name} -> {request.form.get('name')}")
+        if user.email != request.form.get('email'):
+            changes.append(f"Email: {user.email} -> {request.form.get('email')}")
+        if user.role != request.form.get('role'):
+            changes.append(f"Role: {user.role} -> {request.form.get('role')}")
+            
         user.name = request.form.get('name')
         user.email = request.form.get('email')
         user.role = request.form.get('role')
+        
         db.session.commit()
+        
+        if changes:
+            log_user_activity('DB UPDATE', format_db_action('UPDATE', 'User', user.name,
+                ' | '.join(changes)))
         flash('User updated successfully')
         return redirect(url_for('users'))
     return render_template('edit_user.html', user=user)
@@ -745,8 +756,13 @@ def delete_user(user_id):
     """Delete user route."""
     log_user_activity(f'deleted user {user_id}')
     user = User.query.get_or_404(user_id)
+    user_details = f"Name: {user.name}, Email: {user.email}, Role: {user.role}"
+    
     db.session.delete(user)
     db.session.commit()
+    
+    log_user_activity('DB DELETE', format_db_action('DELETE', 'User', user.name,
+        f"Details: {user_details}"))
     flash('User deleted successfully')
     return redirect(url_for('users'))
 
@@ -793,7 +809,47 @@ def edit_product(product_id):
                     return render_template('edit_product.html', product=product, categories=Category.query.all())'''
                 product.price = price
 
+            changes = []
+            if current_user.role == 'ADMIN':
+                if product.name != request.form.get('name'):
+                    changes.append(f"Name: {product.name} -> {request.form.get('name')}")
+                if product.description != request.form.get('description'):
+                    changes.append(f"Description updated")
+                if product.category_id != int(request.form.get('category_id')):
+                    old_cat = Category.query.get(product.category_id).name
+                    new_cat = Category.query.get(int(request.form.get('category_id'))).name
+                    changes.append(f"Category: {old_cat} -> {new_cat}")
+
+            if current_user.role in ['ADMIN', 'MANAGER']:
+                if 'quantity' in locals() and product.quantity != quantity:
+                    changes.append(f"Quantity: {product.quantity} -> {quantity}")
+                if product.low_stock_threshold != int(request.form.get('low_stock_threshold')):
+                    old_threshold = product.low_stock_threshold
+                    new_threshold = int(request.form.get('low_stock_threshold'))
+                    changes.append(f"Low Stock Threshold: {old_threshold} -> {new_threshold}")
+
+            if current_user.role in ['ADMIN', 'MANAGER', 'SUPERVISOR']:
+                if product.price != float(request.form.get('price')):
+                    changes.append(f"Price: ₹{product.price} -> ₹{float(request.form.get('price'))}")
+
+            # Apply all changes
+            if current_user.role == 'ADMIN':
+                product.name = request.form.get('name')
+                product.description = request.form.get('description')
+                product.category_id = int(request.form.get('category_id'))
+
+            if current_user.role in ['ADMIN', 'MANAGER']:
+                product.quantity = quantity
+                product.low_stock_threshold = int(request.form.get('low_stock_threshold'))
+
+            if current_user.role in ['ADMIN', 'MANAGER', 'SUPERVISOR']:
+                product.price = float(request.form.get('price'))
+
             db.session.commit()
+            
+            if changes:
+                log_user_activity('DB UPDATE', format_db_action('UPDATE', 'Product', product.name, 
+                    ' | '.join(changes)))
             flash('Product updated successfully')
             return redirect(url_for('products'))
             
@@ -824,8 +880,11 @@ def delete_product(product_id):
         db.session.delete(part)
 
     # Now delete the product
+    product_name = product.name
     db.session.delete(product)
     db.session.commit()
+    log_user_activity('DB DELETE', format_db_action('DELETE', 'Product', product_name, 
+        f"Cascade: {len(related_order_items)} orders, {len(related_bus_parts)} bus parts"))
     flash('Product and related records deleted successfully')
     return redirect(url_for('products'))
 
@@ -836,9 +895,19 @@ def edit_category(category_id):
     log_user_activity(f'edited category {category_id}')
     category = Category.query.get_or_404(category_id)
     if request.method == 'POST':
+        changes = []
+        if category.name != request.form.get('name'):
+            changes.append(f"Name: {category.name} -> {request.form.get('name')}")
+        if category.description != request.form.get('description'):
+            changes.append(f"Description updated")
+            
         category.name = request.form.get('name')
         category.description = request.form.get('description')
         db.session.commit()
+        
+        if changes:
+            log_user_activity('DB UPDATE', format_db_action('UPDATE', 'Category', category.name,
+                ' | '.join(changes)))
         flash('Category updated successfully')
         return redirect(url_for('categories'))
     return render_template('edit_category.html', category=category)
@@ -850,12 +919,20 @@ def delete_category(category_id):
     log_user_activity(f'deleted category {category_id}')
     category = Category.query.get_or_404(category_id)
 
+    # Get details before deletion
+    category_name = category.name
+    products_detail = [f"{p.name} (Qty: {p.quantity})" for p in category.products]
+    num_products = len(category.products)
+    
     # Delete associated products
     for product in category.products:
         db.session.delete(product)
 
     db.session.delete(category)
     db.session.commit()
+    
+    log_user_activity('DB DELETE', format_db_action('DELETE', 'Category', category_name, 
+        f"Deleted {num_products} products: {', '.join(products_detail)}"))
     flash('Category and associated products deleted successfully')
     return redirect(url_for('categories'))
 
@@ -867,11 +944,20 @@ def user_activity():
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 10, type=int)
     search = request.args.get('search', '')
+    user_id = request.args.get('user_id', 'all')
     sort_by = request.args.get('sort_by', 'timestamp')
     order = request.args.get('order', 'desc')
 
     # Base query
     query = UserActivity.query.join(User)
+
+    # Apply user filter if provided and not "all"
+    if user_id and user_id != 'all':
+        try:
+            user_id_int = int(user_id)
+            query = query.filter(UserActivity.user_id == user_id_int)
+        except ValueError:
+            user_id = 'all'
 
     # Apply search if provided
     if search:
@@ -883,7 +969,7 @@ def user_activity():
         )
 
     # Apply sorting
-    if sort_by == 'user':
+    if sort_by == 'username':
         if order == 'asc':
             query = query.order_by(User.name.asc())
         else:
@@ -903,14 +989,19 @@ def user_activity():
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
     activities = pagination.items
 
+    # Get all users for the filter dropdown
+    users = User.query.all()
+
     return render_template(
         'user_activity.html',
         activities=activities,
         pagination=pagination,
+        users=users,
         search=search,
         sort_by=sort_by,
         order=order
     )
+
 
 
 @app.route('/buses', methods=['GET'])
@@ -973,8 +1064,9 @@ def add_bus():
             db.session.add(bus)
             db.session.commit()
             
+            log_user_activity('DB CREATE', format_db_action('CREATE', 'Bus', name, 
+                f"Number: {bus_number}, Plate: {bus_number_plate}"))
             flash('Bus added successfully')
-            log_user_activity(f'added bus {bus.name}')
             return redirect(url_for('buses'))
             
         except ValueError as e:
@@ -990,12 +1082,28 @@ def edit_bus(bus_id):
     bus = Bus.query.get_or_404(bus_id)
     if request.method == 'POST':
         try:
+            # Store old values for logging
+            old_number = bus.bus_number
+            old_plate = bus.bus_number_plate
+            old_manufacturer = bus.manufacturer
+            old_mfg_date = bus.manufacturer_date
+            old_bought_date = bus.bought_date
+
             # Get form data
             bus_number = request.form.get('bus_number')
             bus_number_plate = request.form.get('bus_number_plate')
             manufacturer = request.form.get('manufacturer')
             manufacturer_date = request.form.get('manufacturer_date')
             bought_date = request.form.get('bought_date')
+
+            # Track changes
+            changes = []
+            if old_number != bus_number:
+                changes.append(f"Number: {old_number} -> {bus_number}")
+            if old_plate != bus_number_plate:
+                changes.append(f"Plate: {old_plate} -> {bus_number_plate}")
+            if old_manufacturer != manufacturer:
+                changes.append(f"Manufacturer: {old_manufacturer} -> {manufacturer}")
 
             # Update fields
             bus.bus_number = bus_number
@@ -1009,11 +1117,17 @@ def edit_bus(bus_id):
             bus.description = f"Bus Registration: {bus_number}, Plate: {bus_number_plate}, Manufacturer: {manufacturer}, Manufactured: {manufacturer_date}, Purchased: {bought_date}"
 
             # Handle dates with proper validation
-            
             if manufacturer_date:
-                bus.manufacturer_date = datetime.strptime(manufacturer_date, '%Y-%m-%d')
+                new_mfg_date = datetime.strptime(manufacturer_date, '%Y-%m-%d')
+                if old_mfg_date != new_mfg_date:
+                    changes.append(f"Manufacture Date: {old_mfg_date.strftime('%Y-%m-%d')} -> {new_mfg_date.strftime('%Y-%m-%d')}")
+                bus.manufacturer_date = new_mfg_date
+
             if bought_date:
-                bus.bought_date = datetime.strptime(bought_date, '%Y-%m-%d')
+                new_bought_date = datetime.strptime(bought_date, '%Y-%m-%d')
+                if old_bought_date != new_bought_date:
+                    changes.append(f"Purchase Date: {old_bought_date.strftime('%Y-%m-%d')} -> {new_bought_date.strftime('%Y-%m-%d')}")
+                bus.bought_date = new_bought_date
                 
                 # Validate dates
                 if bus.bought_date < bus.manufacturer_date:
@@ -1021,8 +1135,11 @@ def edit_bus(bus_id):
                     return render_template('edit_bus.html', bus=bus)
             
             db.session.commit()
+            
+            if changes:
+                log_user_activity('DB UPDATE', format_db_action('UPDATE', 'Bus', bus.name,
+                    ' | '.join(changes)))
             flash('Bus details updated successfully', 'success')
-            log_user_activity(f'edited bus {bus.name}')
             return redirect(url_for('manage_buses'))
             
         except Exception as e:
@@ -1043,11 +1160,14 @@ def delete_bus(bus_id):
     for part in related_bus_parts:
         db.session.delete(part)
 
+    bus_name = bus.name
+    num_parts = len(related_bus_parts)
     db.session.delete(bus)
     db.session.commit()
     
+    log_user_activity('DB DELETE', format_db_action('DELETE', 'Bus', bus_name, 
+        f"Cascade: {num_parts} parts"))
     flash('Bus deleted successfully')
-    log_user_activity(f'deleted bus {bus.name}')
     return redirect(url_for('buses'))
 
 
@@ -1073,30 +1193,32 @@ def assign_parts():
     if request.method == 'POST':
         bus_id = request.form.get('bus_id')
         product_id = request.form.get('part_id')  # Use product_id from the form
-        quantity = request.form.get('quantity')
+        quantity = int(request.form.get('quantity'))
 
-        # Debugging output
-        print(f"Bus ID: {bus_id}, Product ID: {product_id}, Quantity: {quantity}")
-
-        # Fetch the product using the correct product_id
-        product = db.session.get(Product, product_id)  # Updated to use product_id
+        # Fetch the bus and product
+        bus = Bus.query.get(bus_id)
+        product = db.session.get(Product, product_id)
 
         if product is None:
             flash('Product not found.', 'error')
             return redirect(url_for('assign_parts'))
 
-        if product.quantity < int(quantity):
+        if product.quantity < quantity:
             flash('Insufficient quantity available for this product.', 'error')
             return redirect(url_for('assign_parts'))
 
         # Create a new BusPart entry
-        bus_part = BusPart(bus_id=bus_id, product_id=product_id, quantity=quantity, assigned_by=current_user.role)  # Set assigned_by
+        bus_part = BusPart(bus_id=bus_id, product_id=product_id, quantity=quantity, assigned_by=current_user.role)
         db.session.add(bus_part)
 
         # Update the product quantity
-        product.quantity -= int(quantity)
+        old_quantity = product.quantity
+        product.quantity -= quantity
 
         db.session.commit()
+        
+        log_user_activity('DB CREATE', format_db_action('CREATE', 'BusPart Assignment', f"{product.name} to {bus.name}",
+            f"Assigned Qty: {quantity} | Product Stock: {old_quantity} -> {product.quantity}"))
         flash('Product assigned to bus successfully.')
         return redirect(url_for('assign_parts'))
 
@@ -1327,19 +1449,54 @@ def get_products_by_category(category_id):
 @app.route('/fuel-consumption', methods=['GET'])
 @login_required
 def fuel_consumption():
-    """Fuel consumption management page with pagination."""
+    """Fuel consumption management page with backend search, filter and pagination."""
     page = request.args.get('page', 1, type=int)
     per_page = 10
+    search = request.args.get('search', '')
+    filter_type = request.args.get('filter', 'all')
+    sort_by = request.args.get('sort', 'bus')
     
-    # Get paginated buses
-    pagination = Bus.query.paginate(page=page, per_page=per_page, error_out=False)
+    # Base query
+    query = Bus.query
+
+    # Apply search if provided
+    if search:
+        search_terms = search.split()
+        conditions = []
+        for term in search_terms:
+            conditions.append(
+                db.or_(
+                    Bus.bus_number.ilike(f'%{term}%'),
+                    Bus.bus_number_plate.ilike(f'%{term}%')
+                )
+            )
+        query = query.filter(db.and_(*conditions))
+
+    # Apply sorting
+    if sort_by == 'consumption':
+        # Subquery to get total consumption for each bus
+        consumption_subq = db.session.query(
+            Fuel.bus_id,
+            db.func.sum(Fuel.fuel_amount).label('total_consumption')
+        ).group_by(Fuel.bus_id).subquery()
+        
+        query = query.outerjoin(
+            consumption_subq,
+            Bus.id == consumption_subq.c.bus_id
+        ).order_by(db.desc(consumption_subq.c.total_consumption))
+    elif sort_by == 'mileage':
+        # We'll sort by the latest mileage calculation
+        query = query.order_by(Bus.id.desc())  # Default to newest buses first
+    else:  # sort by bus number
+        query = query.order_by(Bus.bus_number)
+
+    # Get paginated results
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
     buses = pagination.items
+    total_pages = pagination.pages
     
-    # Calculate last week consumption and total mileage for each bus
-    one_week_ago = datetime.utcnow() - timedelta(days=7)
-    
+    # Calculate consumption and mileage for each bus
     for bus in buses:
-        # Get all fuel records for this bus
         fuel_records = Fuel.query.filter_by(bus_id=bus.id).order_by(Fuel.date.desc()).all()
         
         # Calculate total fuel consumption
@@ -1353,11 +1510,24 @@ def fuel_consumption():
             bus.current_mileage = distance / latest_record.fuel_amount if latest_record.fuel_amount > 0 else 0
         else:
             bus.current_mileage = 0
+            
+        # Apply efficiency filter after calculations
+        if filter_type != 'all':
+            if filter_type == 'efficient' and bus.current_mileage <= 15:
+                buses.remove(bus)
+            elif filter_type == 'normal' and (bus.current_mileage < 10 or bus.current_mileage > 15):
+                buses.remove(bus)
+            elif filter_type == 'inefficient' and bus.current_mileage >= 10:
+                buses.remove(bus)
     
     return render_template('fuel_consumption.html', 
                          buses=buses,
                          page=page,
-                         has_next=pagination.has_next)
+                         has_next=pagination.has_next,
+                         total_pages=total_pages,
+                         search=search,
+                         filter=filter_type,
+                         sort=sort_by)
 
 
 @app.route('/fuel-logs')
@@ -1410,6 +1580,9 @@ def add_fuel_consumption():
             created_by=current_user.id
         )
         
+        # Get bus details for logging
+        bus = Bus.query.get(bus_id)
+        
         db.session.add(fuel_record)
         db.session.commit()
         
@@ -1417,8 +1590,12 @@ def add_fuel_consumption():
         if last_record:
             distance = reading - last_record.reading
             mileage = distance / fuel_amount if fuel_amount > 0 else 0
+            log_user_activity('DB CREATE', format_db_action('CREATE', 'Fuel Record', f"Bus {bus.name}",
+                f"Amount: {fuel_amount}L, Distance: {distance:.2f}km, Mileage: {mileage:.2f}km/L"))
             flash(f'Fuel consumption record added successfully. Distance: {distance:.2f} km, Mileage: {mileage:.2f} km/L')
         else:
+            log_user_activity('DB CREATE', format_db_action('CREATE', 'Fuel Record', f"Bus {bus.name}",
+                f"Amount: {fuel_amount}L, Initial Reading: {reading}km"))
             flash('First fuel consumption record added successfully')
             
         return redirect(url_for('fuel_consumption'))

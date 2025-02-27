@@ -49,21 +49,25 @@
     <div class="content-card p-6">
         <div class="flex justify-between items-center mb-4">
             <h2 class="text-xl font-semibold">Buses Fuel Consumption</h2>
-            <div class="flex space-x-4">
-                <input type="text" id="searchInput" placeholder="Search buses, consumption, mileage..." 
+            <form method="GET" action="{{ url_for('fuel_consumption') }}" class="flex space-x-4">
+                <input type="text" name="search" placeholder="Search buses..." 
+                       value="{{ search }}"
                        class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                <select id="fuelFilter" class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                    <option value="all">All Records</option>
-                    <option value="efficient">Efficient (>15 km/L)</option>
-                    <option value="normal">Normal (10-15 km/L)</option>
-                    <option value="inefficient">Inefficient (<10 km/L)</option>
+                <select name="filter" class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <option value="all" {% if filter == 'all' %}selected{% endif %}>All Records</option>
+                    <option value="efficient" {% if filter == 'efficient' %}selected{% endif %}>Efficient (>15 km/L)</option>
+                    <option value="normal" {% if filter == 'normal' %}selected{% endif %}>Normal (10-15 km/L)</option>
+                    <option value="inefficient" {% if filter == 'inefficient' %}selected{% endif %}>Inefficient (<10 km/L)</option>
                 </select>
-                <select id="sortBy" class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                    <option value="bus">Sort by Bus Number</option>
-                    <option value="consumption">Sort by Consumption</option>
-                    <option value="mileage">Sort by Mileage</option>
+                <select name="sort" class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <option value="bus" {% if sort == 'bus' %}selected{% endif %}>Bus Number (A-Z)</option>
+                    <option value="consumption" {% if sort == 'consumption' %}selected{% endif %}>Total Fuel Used (High-Low)</option>
+                    <option value="mileage" {% if sort == 'mileage' %}selected{% endif %}>Fuel Efficiency (High-Low)</option>
                 </select>
-            </div>
+                <button type="submit" class="btn-primary">
+                    <i class="fas fa-search mr-2"></i>Apply
+                </button>
+            </form>
         </div>
 
         <div class="overflow-x-auto">
@@ -95,18 +99,52 @@
 
         <!-- Server-side Pagination -->
         <div class="mt-4 flex items-center justify-between">
-            <div class="flex-1 flex justify-between">
-                {% if page > 1 %}
-                <a href="{{ url_for('fuel_consumption', page=page-1) }}" class="btn-secondary">Previous</a>
-                {% else %}
-                <button class="btn-secondary opacity-50 cursor-not-allowed" disabled>Previous</button>
-                {% endif %}
+            <div class="flex-1 flex justify-between items-center">
+                <div>
+                    {% if page > 1 %}
+                    <a href="{{ url_for('fuel_consumption', page=page-1, search=search, filter=filter, sort=sort) }}" class="btn-secondary">Previous</a>
+                    {% else %}
+                    <button class="btn-secondary opacity-50 cursor-not-allowed" disabled>Previous</button>
+                    {% endif %}
+                </div>
 
-                {% if has_next %}
-                <a href="{{ url_for('fuel_consumption', page=page+1) }}" class="btn-secondary">Next</a>
-                {% else %}
-                <button class="btn-secondary opacity-50 cursor-not-allowed" disabled>Next</button>
-                {% endif %}
+                <div class="flex space-x-2">
+                    {% set start = [page - 2, 1]|max %}
+                    {% set end = [start + 4, total_pages]|min %}
+                    {% set start = [end - 4, 1]|max %}
+                    
+                    {% if start > 1 %}
+                    <a href="{{ url_for('fuel_consumption', page=1, search=search, filter=filter, sort=sort) }}" class="px-3 py-1 rounded-md {% if page == 1 %}bg-indigo-600 text-white{% else %}text-gray-700 hover:bg-gray-100{% endif %}">1</a>
+                    {% if start > 2 %}
+                    <span class="px-3 py-1">...</span>
+                    {% endif %}
+                    {% endif %}
+
+                    {% for p in range(start, end + 1) %}
+                    <a href="{{ url_for('fuel_consumption', page=p, search=search, filter=filter, sort=sort) }}" 
+                       class="px-3 py-1 rounded-md {% if page == p %}bg-indigo-600 text-white{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
+                        {{ p }}
+                    </a>
+                    {% endfor %}
+
+                    {% if end < total_pages %}
+                    {% if end < total_pages - 1 %}
+                    <span class="px-3 py-1">...</span>
+                    {% endif %}
+                    <a href="{{ url_for('fuel_consumption', page=total_pages, search=search, filter=filter, sort=sort) }}" 
+                       class="px-3 py-1 rounded-md {% if page == total_pages %}bg-indigo-600 text-white{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
+                        {{ total_pages }}
+                    </a>
+                    {% endif %}
+                </div>
+
+                <div>
+                    {% if has_next %}
+                    <a href="{{ url_for('fuel_consumption', page=page+1, search=search, filter=filter, sort=sort) }}" class="btn-secondary">Next</a>
+                    {% else %}
+                    <button class="btn-secondary opacity-50 cursor-not-allowed" disabled>Next</button>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
@@ -175,100 +213,18 @@ document.getElementById('historySearch').addEventListener('input', function(e) {
     });
 });
 
-// Search functionality
-document.getElementById('searchInput').addEventListener('input', function(e) {
-    const searchText = e.target.value.toLowerCase().trim();
-    const rows = document.querySelectorAll('#busesTableBody tr');
+// Update pagination links to preserve search, filter and sort parameters
+const paginationLinks = document.querySelectorAll('.btn-secondary[href]');
+paginationLinks.forEach(link => {
+    const url = new URL(link.href);
+    const currentParams = new URLSearchParams(window.location.search);
     
-    rows.forEach(row => {
-        const busNumber = row.children[0].textContent.toLowerCase();
-        const consumption = row.children[1].textContent.toLowerCase();
-        const mileage = row.children[2].textContent.toLowerCase();
-        const searchTerms = searchText.split(/\s+/);
-        
-        const visible = searchText === '' || searchTerms.every(term => 
-            busNumber.includes(term) || 
-            consumption.includes(term) || 
-            mileage.includes(term)
-        );
-        row.style.display = visible ? '' : 'none';
-    });
+    // Preserve current search, filter and sort parameters
+    if (currentParams.has('search')) url.searchParams.set('search', currentParams.get('search'));
+    if (currentParams.has('filter')) url.searchParams.set('filter', currentParams.get('filter'));
+    if (currentParams.has('sort')) url.searchParams.set('sort', currentParams.get('sort'));
+    
+    link.href = url.toString();
 });
-
-// Filter functionality
-document.getElementById('fuelFilter').addEventListener('change', function(e) {
-    const filterValue = e.target.value;
-    const rows = document.querySelectorAll('#busesTableBody tr');
-    
-    rows.forEach(row => {
-        const mileage = parseFloat(row.children[2].textContent.split(' ')[0]);  // Remove 'km' unit
-        let visible = true;
-        
-        switch(filterValue) {
-            case 'efficient':
-                visible = mileage > 15;
-                break;
-            case 'normal':
-                visible = mileage >= 10 && mileage <= 15;
-                break;
-            case 'inefficient':
-                visible = mileage < 10;
-                break;
-        }
-        
-        row.style.display = visible ? '' : 'none';
-    });
-});
-
-// Sort functionality
-document.getElementById('sortBy').addEventListener('change', function(e) {
-    const sortValue = e.target.value;
-    const rows = Array.from(document.querySelectorAll('#busesTableBody tr'));
-    
-    rows.sort((a, b) => {
-        switch(sortValue) {
-            case 'bus':
-                return a.children[0].textContent.localeCompare(b.children[0].textContent);
-            case 'consumption':
-                return parseFloat(b.children[1].textContent.split(' ')[0]) - parseFloat(a.children[1].textContent.split(' ')[0]);  // Remove 'L' unit
-            case 'mileage':
-                return parseFloat(b.children[2].textContent.split(' ')[0]) - parseFloat(a.children[2].textContent.split(' ')[0]);  // Remove 'km' unit
-            default:
-                return 0;
-        }
-    });
-    
-    const tbody = document.getElementById('busesTableBody');
-    rows.forEach(row => tbody.appendChild(row));
-    
-    // Apply current filter
-    document.getElementById('fuelFilter').dispatchEvent(new Event('change'));
-});
-
-
-// Keep current filter and search state when navigating pages
-function updateFilteredState() {
-    const searchText = document.getElementById('searchInput').value;
-    const filterValue = document.getElementById('fuelFilter').value;
-    const sortValue = document.getElementById('sortBy').value;
-    
-    // Add current state to pagination links
-    const paginationLinks = document.querySelectorAll('.btn-secondary[href]');
-    paginationLinks.forEach(link => {
-        const url = new URL(link.href);
-        if (searchText) url.searchParams.set('search', searchText);
-        if (filterValue !== 'all') url.searchParams.set('filter', filterValue);
-        if (sortValue !== 'bus') url.searchParams.set('sort', sortValue);
-        link.href = url.toString();
-    });
-}
-
-// Call updateFilteredState when filters change
-document.getElementById('searchInput').addEventListener('input', updateFilteredState);
-document.getElementById('fuelFilter').addEventListener('change', updateFilteredState);
-document.getElementById('sortBy').addEventListener('change', updateFilteredState);
-
-// Initialize filter state
-updateFilteredState();
 </script>
 {% endblock %}

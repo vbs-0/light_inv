@@ -2,151 +2,161 @@
 
 {% block content %}
 <div class="space-y-6">
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-bold text-gray-800">User Activity Logs</h1>
-        <div class="flex space-x-4">
-            <input type="text" id="searchInput" placeholder="Search..." class="form-control" value="{{ search }}">
-            <select id="sortBy" class="form-control">
-                <option value="timestamp" {% if sort_by == 'timestamp' %}selected{% endif %}>Sort by Time</option>
-                <option value="user" {% if sort_by == 'user' %}selected{% endif %}>Sort by User</option>
-                <option value="action" {% if sort_by == 'action' %}selected{% endif %}>Sort by Action</option>
-            </select>
-            <select id="orderBy" class="form-control">
-                <option value="desc" {% if order == 'desc' %}selected{% endif %}>Descending</option>
-                <option value="asc" {% if order == 'asc' %}selected{% endif %}>Ascending</option>
-            </select>
-        </div>
+    <div class="page-header">
+        <h1 class="page-title">User Activity</h1>
     </div>
 
-    <div class="content-card">
-        <div class="px-6 py-4 border-b border-indigo-500/20">
-            <h2 class="text-xl font-semibold text-gray-800 flex items-center gap-2">
-                <i class="fas fa-clipboard-list"></i>
-                Activity Log
-            </h2>
-        </div>
-        <div class="p-6">
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-indigo-500/20">
-                    <thead>
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">User</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Action</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Timestamp</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-indigo-500/20">
-                        {% for activity in activities %}
-                        <tr class="hover:bg-indigo-500/10 transition-colors duration-150">
-                            <td class="px-6 py-4 whitespace-nowrap text-gray-600">
-                                <div class="flex items-center gap-2">
-                                    <i class="fas fa-user text-indigo-400"></i>
-                                    {{ activity.user.name }}
-                                </div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-gray-600">
-                                <div class="flex items-center gap-2">
-                                    <i class="fas fa-circle text-xs text-indigo-400"></i>
-                                    {{ activity.action }}
-                                </div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-gray-600">
-                                <div class="flex items-center gap-2">
-                                    <i class="fas fa-clock text-indigo-400"></i>
-                                    {{ activity.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Pagination -->
-            {% if pagination %}
-            <div class="flex justify-between items-center mt-4">
-                <div class="flex items-center space-x-2">
-                    <select id="perPage" class="form-control">
-                        <option value="10" {% if pagination.per_page == 10 %}selected{% endif %}>10 per page</option>
-                        <option value="25" {% if pagination.per_page == 25 %}selected{% endif %}>25 per page</option>
-                        <option value="50" {% if pagination.per_page == 50 %}selected{% endif %}>50 per page</option>
-                        <option value="100" {% if pagination.per_page == 100 %}selected{% endif %}>100 per page</option>
-                    </select>
-                    <span class="text-gray-600">
-                        {% set end_item = pagination.page * pagination.per_page %}
-                        {% if end_item > pagination.total %}
-                            {% set end_item = pagination.total %}
-                        {% endif %}
-                        Showing {{ (pagination.page - 1) * pagination.per_page + 1 }} 
-                        to {{ end_item }}
-                        of {{ pagination.total }} entries
-                    </span>
-                </div>
-                <div class="flex space-x-2">
-                    {% if pagination.has_prev %}
-                    <a href="{{ url_for('user_activity', page=pagination.prev_num, per_page=pagination.per_page, search=search, sort_by=sort_by, order=order) }}" 
-                       class="btn btn-primary">Previous</a>
-                    {% endif %}
-                    
-                    {% for page_num in pagination.iter_pages(left_edge=2, left_current=2, right_current=3, right_edge=2) %}
-                        {% if page_num %}
-                            {% if page_num == pagination.page %}
-                            <span class="btn btn-primary active">{{ page_num }}</span>
-                            {% else %}
-                            <a href="{{ url_for('user_activity', page=page_num, per_page=pagination.per_page, search=search, sort_by=sort_by, order=order) }}" 
-                               class="btn btn-primary">{{ page_num }}</a>
-                            {% endif %}
-                        {% else %}
-                            <span class="btn btn-primary disabled">...</span>
-                        {% endif %}
-                    {% endfor %}
-                    
-                    {% if pagination.has_next %}
-                    <a href="{{ url_for('user_activity', page=pagination.next_num, per_page=pagination.per_page, search=search, sort_by=sort_by, order=order) }}" 
-                       class="btn btn-primary">Next</a>
-                    {% endif %}
-                </div>
-            </div>
+    <!-- Active Filters Display -->
+    <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center space-x-2">
+            {% if search or (user_id and user_id != 'all') %}
+            <span class="text-sm text-gray-600">Active Filters:</span>
+            {% if search %}
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                Search: {{ search }}
+            </span>
+            {% endif %}
+            {% if user_id and user_id != 'all' %}
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                User: {{ users|selectattr('id', 'equalto', user_id|int)|map(attribute='name')|first }}
+            </span>
+            {% endif %}
             {% endif %}
         </div>
+       
+        <a href="{{ url_for('user_activity') }}" class="inline-flex items-center px-4 py-2 bg-red-100 text-red-700 hover:bg-red-200 rounded-md text-sm font-medium transition-colors duration-150">
+            <i class="fas fa-times mr-2"></i> Clear All Filters
+        </a>
+     
     </div>
+
+    <!-- Filters Section -->
+    <form action="{{ url_for('user_activity') }}" method="GET" class="grid grid-cols-1 md:grid-cols-12 gap-4">
+        <div class="md:col-span-4 flex space-x-2">
+            <div class="relative flex-grow">
+                <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                <input type="search" name="search" id="searchInput" class="input-field pl-10 w-full" placeholder="Search by user or action..." value="{{ search if search }}">
+            </div>
+            <button type="submit" class="btn-primary">
+                <i class="fas fa-search mr-1"></i> Search
+            </button>
+        </div>
+        <select name="user_id" id="userFilter" class="input-field md:col-span-3">
+            <option value="all" {% if not user_id or user_id == 'all' %}selected{% endif %}>All Users</option>
+            {% for user in users %}
+            <option value="{{ user.id }}" {% if user_id and user_id|string == user.id|string %}selected{% endif %}>{{ user.name }}</option>
+            {% endfor %}
+        </select>
+        <select name="sort_by" id="sortField" class="input-field md:col-span-3">
+            <option value="timestamp" {% if sort_by == 'timestamp' %}selected{% endif %}>Sort by Time</option>
+            <option value="username" {% if sort_by == 'username' %}selected{% endif %}>Sort by User</option>
+            <option value="action" {% if sort_by == 'action' %}selected{% endif %}>Sort by Action</option>
+        </select>
+        <select name="order" id="sortOrder" class="input-field md:col-span-2">
+            <option value="desc" {% if order == 'desc' %}selected{% endif %}>Newest First</option>
+            <option value="asc" {% if order == 'asc' %}selected{% endif %}>Oldest First</option>
+        </select>
+        <script>
+            ['userFilter', 'sortField', 'sortOrder'].forEach(function(id) {
+                document.getElementById(id).addEventListener('change', function() {
+                    this.form.submit();
+                });
+            });
+        </script>
+        <input type="hidden" name="page" value="1">
+    </form>
+
+    <!-- Activity Table -->
+    <div class="content-card overflow-hidden">
+        <div class="overflow-x-auto">
+            <table id="activity-table" class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Time</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">User</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="activity-tbody" class="bg-white divide-y divide-gray-200">
+                    {% for activity in activities %}
+                    <tr data-user="{{ activity.user.name }}" data-action="{{ activity.action }}" data-timestamp="{{ activity.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ activity.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ activity.user.name }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ activity.action }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Improved Pagination -->
+    {% if pagination.pages > 1 %}
+    <nav aria-label="Page navigation" class="flex justify-center mt-4">
+        <ul class="flex items-center space-x-2">
+            <!-- Previous Button -->
+            {% if pagination.page > 1 %}
+            <li>
+                <a href="{{ url_for('user_activity', page=pagination.page-1, search=search, user_id=user_id, sort_by=sort_by, order=order) }}" 
+                   class="px-3 py-2 bg-white text-gray-600 hover:bg-gray-50 border rounded-md">
+                    <i class="fas fa-chevron-left"></i> Previous
+                </a>
+            </li>
+            {% endif %}
+
+            <!-- First Page -->
+            <li>
+                <a href="{{ url_for('user_activity', page=1, search=search, user_id=user_id, sort_by=sort_by, order=order) }}" 
+                   class="px-3 py-2 {% if pagination.page == 1 %}bg-blue-600 text-white{% else %}bg-white text-gray-600 hover:bg-gray-50{% endif %} border rounded-md">
+                    1
+                </a>
+            </li>
+
+            <!-- Ellipsis if needed -->
+            {% if pagination.page > 4 %}
+            <li class="px-3 py-2">...</li>
+            {% endif %}
+
+            <!-- Pages around current page -->
+            {% for page in range(pagination.pages + 1) %}
+                {% if page > 1 and page < pagination.pages %}
+                    {% if (page >= pagination.page - 2 and page <= pagination.page + 2) %}
+                    <li>
+                        <a href="{{ url_for('user_activity', page=page, search=search, user_id=user_id, sort_by=sort_by, order=order) }}" 
+                           class="px-3 py-2 {% if page == pagination.page %}bg-blue-600 text-white{% else %}bg-white text-gray-600 hover:bg-gray-50{% endif %} border rounded-md">
+                            {{ page }}
+                        </a>
+                    </li>
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
+
+            <!-- Ellipsis if needed -->
+            {% if pagination.page < pagination.pages - 3 %}
+            <li class="px-3 py-2">...</li>
+            {% endif %}
+
+            <!-- Last Page -->
+            {% if pagination.pages > 1 %}
+            <li>
+                <a href="{{ url_for('user_activity', page=pagination.pages, search=search, user_id=user_id, sort_by=sort_by, order=order) }}" 
+                   class="px-3 py-2 {% if pagination.page == pagination.pages %}bg-blue-600 text-white{% else %}bg-white text-gray-600 hover:bg-gray-50{% endif %} border rounded-md">
+                    {{ pagination.pages }}
+                </a>
+            </li>
+            {% endif %}
+
+            <!-- Next Button -->
+            {% if pagination.page < pagination.pages %}
+            <li>
+                <a href="{{ url_for('user_activity', page=pagination.page+1, search=search, user_id=user_id, sort_by=sort_by, order=order) }}" 
+                   class="px-3 py-2 bg-white text-gray-600 hover:bg-gray-50 border rounded-md">
+                    Next <i class="fas fa-chevron-right"></i>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
 </div>
-
-<script>
-    // Handle search, sort, and pagination
-    function updateQueryParams() {
-        const searchValue = document.getElementById('searchInput').value;
-        const sortBy = document.getElementById('sortBy').value;
-        const orderBy = document.getElementById('orderBy').value;
-        const perPage = document.getElementById('perPage').value;
-        
-        const params = new URLSearchParams(window.location.search);
-        params.set('search', searchValue);
-        params.set('sort_by', sortBy);
-        params.set('order', orderBy);
-        params.set('per_page', perPage);
-        params.set('page', '1'); // Reset to first page when filters change
-        
-        window.location.href = `₹{window.location.pathname}?₹{params.toString()}`;
-    }
-
-    // Add event listeners
-    document.getElementById('searchInput').addEventListener('input', debounce(updateQueryParams, 500));
-    document.getElementById('sortBy').addEventListener('change', updateQueryParams);
-    document.getElementById('orderBy').addEventListener('change', updateQueryParams);
-    document.getElementById('perPage').addEventListener('change', updateQueryParams);
-
-    // Debounce function to limit API calls while typing
-    function debounce(func, wait) {
-        let timeout;
-        return function executedFunction(...args) {
-            const later = () => {
-                clearTimeout(timeout);
-                func(...args);
-            };
-            clearTimeout(timeout);
-            timeout = setTimeout(later, wait);
-        };
-    }
-</script>
 {% endblock %}
