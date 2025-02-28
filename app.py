@@ -1537,8 +1537,8 @@ def fuel_logs():
     page = request.args.get('page', 1, type=int)
     per_page = 10
     
-    # Get paginated records
-    pagination = Fuel.query.order_by(Fuel.date.desc()).paginate(
+    # Get paginated records ordered by date ascending (oldest to newest)
+    pagination = Fuel.query.order_by(Fuel.date.asc()).paginate(
         page=page, per_page=per_page, error_out=False
     )
     

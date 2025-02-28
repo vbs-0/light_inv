@@ -35,27 +35,49 @@
                     <tbody class="bg-white divide-y divide-gray-200" id="logsTableBody">
                         {% for log in fuel_logs %}
                         <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4">{{ log.date.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td class="px-6 py-4">{{ log.date.strftime('%Y-%m-%d') }}</td>
+
                             <td class="px-6 py-4">{{ log.bus.bus_number_plate }} ({{ log.bus.bus_number }})</td>
                             <td class="px-6 py-4">{{ log.fuel_amount }} L</td>
                             <td class="px-6 py-4">{{ log.reading }} km</td>
                             <td class="px-6 py-4">
-                                {% if not loop.last %}
-                                    {% set prev_log = fuel_logs[loop.index] %}
-                                    {{ "%.2f"|format(log.reading - prev_log.reading) }} km
+                                {% if loop.index < fuel_logs|length %}
+                                    {% set next_log = fuel_logs[loop.index] %}
+                                    {% set distance = log.reading - next_log.reading %}
+                                    {% if distance >= 0 %}
+                                        {{ "%.2f"|format(distance) }} km
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
                                 {% else %}
                                     N/A
                                 {% endif %}
                             </td>
                             <td class="px-6 py-4">
-                                {% if not loop.last %}
-                                    {% set prev_log = fuel_logs[loop.index] %}
-                                    {% set distance = log.reading - prev_log.reading %}
+                                {% if loop.index < fuel_logs|length %}
+                                    {% set next_log = fuel_logs[loop.index] %}
+                                    {% set distance = log.reading - next_log.reading %}
+                                    {% if distance >= 0 and log.fuel_amount > 0 %}
+                                        {{ "%.2f"|format(distance / log.fuel_amount) }} km/L
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </td>
+
+<!--
+                            <td class="px-6 py-4">
+                                {% if loop.index < fuel_logs|length %}
+                                    {% set next_log = fuel_logs[loop.index] %}
+                                    {% set distance = log.reading - next_log.reading %}
                                     {{ "%.2f"|format(distance / log.fuel_amount) if log.fuel_amount > 0 else "N/A" }} km/L
                                 {% else %}
                                     N/A
                                 {% endif %}
                             </td>
+                            -->
                             <td class="px-6 py-4">{{ log.user.name }}</td>
                         </tr>
                         {% endfor %}
@@ -89,9 +111,10 @@
                             <div>
                                 <div class="text-gray-500">Distance</div>
                                 <div>
-                                    {% if not loop.last %}
-                                        {% set prev_log = fuel_logs[loop.index] %}
-                                        {{ "%.2f"|format(log.reading - prev_log.reading) }} km
+                                    {% if loop.index < fuel_logs|length %}
+                                        {% set next_log = fuel_logs[loop.index] %}
+                                        {% set distance = log.reading - next_log.reading %}
+                                        {{ "%.2f"|format(distance) }} km
                                     {% else %}
                                         N/A
                                     {% endif %}
@@ -100,9 +123,9 @@
                             <div>
                                 <div class="text-gray-500">Mileage</div>
                                 <div>
-                                    {% if not loop.last %}
-                                        {% set prev_log = fuel_logs[loop.index] %}
-                                        {% set distance = log.reading - prev_log.reading %}
+                                    {% if loop.index < fuel_logs|length %}
+                                        {% set next_log = fuel_logs[loop.index] %}
+                                        {% set distance = log.reading - next_log.reading %}
                                         {{ "%.2f"|format(distance / log.fuel_amount) if log.fuel_amount > 0 else "N/A" }} km/L
                                     {% else %}
                                         N/A

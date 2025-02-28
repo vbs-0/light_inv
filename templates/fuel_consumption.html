@@ -32,8 +32,9 @@
                 </div>
                 <div>
                     <label for="date" class="block text-sm font-medium text-gray-700">Date</label>
-                    <input type="date" name="date" id="date" required 
+                    <input type="date" name="date" id="date" required max=""
                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+
                 </div>
             </div>
             <div class="flex justify-end">
@@ -78,7 +79,9 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bus Number</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Fuel Consumption</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Mileage</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Average Mileage</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200" id="busesTableBody">
@@ -87,7 +90,12 @@
                         <td class="px-6 py-4 whitespace-nowrap">{{ bus.bus_number_plate }} ({{ bus.bus_number }})</td>
                         <td class="px-6 py-4 whitespace-nowrap">{{ bus.total_fuel_consumption|default(0, true) }} L</td>
                         <td class="px-6 py-4 whitespace-nowrap">{{ bus.current_mileage|default(0, true) }} km</td>
+                        <td class="px-6 py-4 whitespace-nowrap" x-data="{ avg: ({{ bus.current_mileage|default(0, true) }} / {{ bus.total_fuel_consumption|default(1, true) }}).toFixed(2) }">
+                            <span x-text="avg"></span> km/L
+                        </td>
+
                         <td class="px-6 py-4 whitespace-nowrap">
+
                             <button onclick="showFuelHistory('{{ bus.id }}')" class="btn-secondary">
                                 <i class="fas fa-history mr-2"></i>History
                             </button>
@@ -121,7 +129,13 @@
                             <div class="text-gray-500">Current Mileage</div>
                             <div>{{ bus.current_mileage|default(0, true) }} km</div>
                         </div>
+                        <div>
+                            <div class="text-gray-500">Average Mileage</div>
+                            <div>{{ ((bus.current_mileage|default(0, true)) / (bus.total_fuel_consumption|default(1, true)))|round(2) }} km/L</div>
+                        </div>
+
                     </div>
+
                 </div>
                 {% endfor %}
             </div>
@@ -233,8 +247,15 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
 <script>
+function calculateAverageMileage(currentMileage, totalFuel) {
+    if (totalFuel <= 0) return 0;
+    return (currentMileage / totalFuel).toFixed(2);
+}
+
 function showFuelHistory(busId) {
+
     fetch(`/fuel-history/${busId}`)
         .then(response => response.json())
         .then(data => {
@@ -274,8 +295,16 @@ document.getElementById('historySearch').addEventListener('input', function(e) {
     });
 });
 
+// Set max date to today for date input
+const dateInput = document.getElementById('date');
+if (dateInput) {
+    const today = new Date().toISOString().split('T')[0];
+    dateInput.setAttribute('max', today);
+}
+
 // Update pagination links to preserve search, filter and sort parameters
 const paginationLinks = document.querySelectorAll('.btn-secondary[href]');
+
 paginationLinks.forEach(link => {
     const url = new URL(link.href);
     const currentParams = new URLSearchParams(window.location.search);
