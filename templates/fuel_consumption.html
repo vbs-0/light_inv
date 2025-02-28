@@ -47,9 +47,9 @@
 
     <!-- Buses Fuel Consumption Table -->
     <div class="content-card p-6">
-        <div class="flex justify-between items-center mb-4">
+        <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
             <h2 class="text-xl font-semibold">Buses Fuel Consumption</h2>
-            <form method="GET" action="{{ url_for('fuel_consumption') }}" class="flex space-x-4">
+            <form method="GET" action="{{ url_for('fuel_consumption') }}" class="flex flex-col md:flex-row gap-4">
                 <input type="text" name="search" placeholder="Search buses..." 
                        value="{{ search }}"
                        class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
@@ -70,7 +70,8 @@
             </form>
         </div>
 
-        <div class="overflow-x-auto">
+        <!-- Desktop View -->
+        <div class="hidden md:block overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
@@ -97,53 +98,114 @@
             </table>
         </div>
 
+        <!-- Mobile View -->
+        <div class="md:hidden">
+            <div class="divide-y divide-gray-200">
+                {% for bus in buses %}
+                <div class="py-4">
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <div class="font-medium">{{ bus.bus_number_plate }}</div>
+                            <div class="text-sm text-gray-500">{{ bus.bus_number }}</div>
+                        </div>
+                        <button onclick="showFuelHistory('{{ bus.id }}')" class="btn-secondary">
+                            <i class="fas fa-history mr-2"></i>History
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <div class="text-gray-500">Total Fuel</div>
+                            <div>{{ bus.total_fuel_consumption|default(0, true) }} L</div>
+                        </div>
+                        <div>
+                            <div class="text-gray-500">Current Mileage</div>
+                            <div>{{ bus.current_mileage|default(0, true) }} km</div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
         <!-- Server-side Pagination -->
-        <div class="mt-4 flex items-center justify-between">
-            <div class="flex-1 flex justify-between items-center">
-                <div>
-                    {% if page > 1 %}
-                    <a href="{{ url_for('fuel_consumption', page=page-1, search=search, filter=filter, sort=sort) }}" class="btn-secondary">Previous</a>
-                    {% else %}
-                    <button class="btn-secondary opacity-50 cursor-not-allowed" disabled>Previous</button>
-                    {% endif %}
+        <div class="mt-4 px-4 py-3 bg-gray-50 border-t">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div class="text-sm text-gray-700 text-center md:text-left">
+                    Showing page {{ page }} of {{ total_pages }}
                 </div>
+                <div class="flex flex-wrap justify-center md:justify-end gap-2">
+                    <!-- Mobile Previous/Next -->
+                    <div class="flex justify-between w-full md:hidden">
+                        {% if page > 1 %}
+                        <a href="{{ url_for('fuel_consumption', page=page-1, search=search, filter=filter, sort=sort) }}" 
+                           class="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
+                            Previous
+                        </a>
+                        {% else %}
+                        <button class="px-3 py-1 bg-gray-100 text-gray-400 rounded-lg opacity-50 cursor-not-allowed" disabled>
+                            Previous
+                        </button>
+                        {% endif %}
 
-                <div class="flex space-x-2">
-                    {% set start = [page - 2, 1]|max %}
-                    {% set end = [start + 4, total_pages]|min %}
-                    {% set start = [end - 4, 1]|max %}
-                    
-                    {% if start > 1 %}
-                    <a href="{{ url_for('fuel_consumption', page=1, search=search, filter=filter, sort=sort) }}" class="px-3 py-1 rounded-md {% if page == 1 %}bg-indigo-600 text-white{% else %}text-gray-700 hover:bg-gray-100{% endif %}">1</a>
-                    {% if start > 2 %}
-                    <span class="px-3 py-1">...</span>
-                    {% endif %}
-                    {% endif %}
+                        {% if has_next %}
+                        <a href="{{ url_for('fuel_consumption', page=page+1, search=search, filter=filter, sort=sort) }}" 
+                           class="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
+                            Next
+                        </a>
+                        {% else %}
+                        <button class="px-3 py-1 bg-gray-100 text-gray-400 rounded-lg opacity-50 cursor-not-allowed" disabled>
+                            Next
+                        </button>
+                        {% endif %}
+                    </div>
 
-                    {% for p in range(start, end + 1) %}
-                    <a href="{{ url_for('fuel_consumption', page=p, search=search, filter=filter, sort=sort) }}" 
-                       class="px-3 py-1 rounded-md {% if page == p %}bg-indigo-600 text-white{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
-                        {{ p }}
-                    </a>
-                    {% endfor %}
+                    <!-- Desktop Full Pagination -->
+                    <div class="hidden md:flex gap-2">
+                        {% if page > 1 %}
+                        <a href="{{ url_for('fuel_consumption', page=page-1, search=search, filter=filter, sort=sort) }}" 
+                           class="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
+                            Previous
+                        </a>
+                        {% endif %}
+                        
+                        {% set start = [page - 2, 1]|max %}
+                        {% set end = [start + 4, total_pages]|min %}
+                        {% set start = [end - 4, 1]|max %}
+                        
+                        {% if start > 1 %}
+                        <a href="{{ url_for('fuel_consumption', page=1, search=search, filter=filter, sort=sort) }}" 
+                           class="px-3 py-1 rounded-lg {% if page == 1 %}bg-indigo-600 text-white{% else %}bg-gray-100 text-gray-700 hover:bg-gray-200{% endif %}">
+                            1
+                        </a>
+                        {% if start > 2 %}
+                        <span class="px-3 py-1">...</span>
+                        {% endif %}
+                        {% endif %}
 
-                    {% if end < total_pages %}
-                    {% if end < total_pages - 1 %}
-                    <span class="px-3 py-1">...</span>
-                    {% endif %}
-                    <a href="{{ url_for('fuel_consumption', page=total_pages, search=search, filter=filter, sort=sort) }}" 
-                       class="px-3 py-1 rounded-md {% if page == total_pages %}bg-indigo-600 text-white{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
-                        {{ total_pages }}
-                    </a>
-                    {% endif %}
-                </div>
+                        {% for p in range(start, end + 1) %}
+                        <a href="{{ url_for('fuel_consumption', page=p, search=search, filter=filter, sort=sort) }}" 
+                           class="px-3 py-1 rounded-lg {% if page == p %}bg-indigo-600 text-white{% else %}bg-gray-100 text-gray-700 hover:bg-gray-200{% endif %}">
+                            {{ p }}
+                        </a>
+                        {% endfor %}
 
-                <div>
-                    {% if has_next %}
-                    <a href="{{ url_for('fuel_consumption', page=page+1, search=search, filter=filter, sort=sort) }}" class="btn-secondary">Next</a>
-                    {% else %}
-                    <button class="btn-secondary opacity-50 cursor-not-allowed" disabled>Next</button>
-                    {% endif %}
+                        {% if end < total_pages %}
+                        {% if end < total_pages - 1 %}
+                        <span class="px-3 py-1">...</span>
+                        {% endif %}
+                        <a href="{{ url_for('fuel_consumption', page=total_pages, search=search, filter=filter, sort=sort) }}" 
+                           class="px-3 py-1 rounded-lg {% if page == total_pages %}bg-indigo-600 text-white{% else %}bg-gray-100 text-gray-700 hover:bg-gray-200{% endif %}">
+                            {{ total_pages }}
+                        </a>
+                        {% endif %}
+
+                        {% if has_next %}
+                        <a href="{{ url_for('fuel_consumption', page=page+1, search=search, filter=filter, sort=sort) }}" 
+                           class="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
+                            Next
+                        </a>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
@@ -172,7 +234,6 @@
 </div>
 
 <script>
-
 function showFuelHistory(busId) {
     fetch(`/fuel-history/${busId}`)
         .then(response => response.json())

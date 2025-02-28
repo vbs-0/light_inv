@@ -6,7 +6,7 @@
     <div class="bg-white p-4 rounded-lg shadow-sm">
         <div class="flex flex-col md:flex-row justify-between items-center gap-4">
             <!-- Search Bar -->
-            <div class="relative flex-1">
+            <div class="relative flex-1 w-full">
                 <input type="text" 
                        id="orderSearch" 
                        placeholder="Search orders..." 
@@ -16,8 +16,8 @@
             </div>
             
             <!-- Quick Filters -->
-            <div class="flex gap-2">
-                <select id="statusFilter" class="border rounded-lg px-3z py-2">
+            <div class="flex gap-2 w-full md:w-auto">
+                <select id="statusFilter" class="border rounded-lg  w-full md:w-auto">
                     <option value="all" {% if status == 'all' %}selected{% endif %}>All Status</option>
                     <option value="pending" {% if status == 'pending' %}selected{% endif %}>Pending</option>
                     <option value="approved" {% if status == 'approved' %}selected{% endif %}>Approved</option>
@@ -26,7 +26,7 @@
                 
                 {% if current_user.role in ['MANAGER', 'SUPERVISOR'] %}
                 <button type="button" id="createOrderBtn"
-                        class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                        class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 whitespace-nowrap">
                     <i class="fas fa-plus mr-2"></i>Create Order
                 </button>
                 {% endif %}
@@ -34,74 +34,128 @@
         </div>
     </div>
 
-    <!-- Orders Table -->
+    <!-- Orders List -->
     <div class="bg-white rounded-lg shadow-sm overflow-hidden">
-        <table class="min-w-full">
-            <thead class="bg-gray-50">
-                <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order ID</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created By</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-200">
+        <!-- Desktop View -->
+        <div class="hidden md:block">
+            <table class="min-w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order ID</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created By</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for order, user_name, user_role in orders %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4">#{{ order.id }}</td>
+                        <td class="px-6 py-4">{{ user_name }} ({{ user_role }})</td>
+                        <td class="px-6 py-4">
+                            <span class="px-2 py-1 text-sm rounded-full
+                                {% if order.status == 'PENDING' %}bg-yellow-100 text-yellow-800
+                                {% elif order.status == 'APPROVED' %}bg-green-100 text-green-800
+                                {% elif order.status == 'REJECTED' %}bg-red-100 text-red-800
+                                {% endif %}">
+                                {{ order.status }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4">{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td class="px-6 py-4">
+                            <div class="flex gap-2">
+                                {% if current_user.role in ['MANAGER'] and order.status == 'PENDING' %}
+                                <button type="button" 
+                                        data-action="approve"
+                                        data-order-id="{{ order.id }}"
+                                        class="action-btn px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                                    Approve
+                                </button>
+                                <button type="button"
+                                        data-action="reject"
+                                        data-order-id="{{ order.id }}"
+                                        class="action-btn px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                                    Reject
+                                </button>
+                                {% endif %}
+                                {% if current_user.role in ['MANAGER', 'SUPERVISOR', 'ADMIN'] %}
+                                <button type="button"
+                                        data-action="details"
+                                        data-order-id="{{ order.id }}"
+                                        class="action-btn px-3 py-1 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
+                                    Details
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Mobile View -->
+        <div class="md:hidden">
+            <div class="divide-y divide-gray-200">
                 {% for order, user_name, user_role in orders %}
-                <tr class="hover:bg-gray-50">
-                    <td class="px-6 py-4">#{{ order.id }}</td>
-                    <td class="px-6 py-4">{{ user_name }} ({{ user_role }})</td>
-                    <td class="px-6 py-4">
-                        <span class="px-2 py-1 text-sm rounded-full
+                <div class="p-4 hover:bg-gray-50">
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <div class="font-medium">#{{ order.id }}</div>
+                            <div class="text-sm text-gray-500">{{ user_name }}</div>
+                            <div class="text-xs text-gray-400">{{ user_role }}</div>
+                        </div>
+                        <span class="px-2 py-1 text-sm rounded-full whitespace-nowrap
                             {% if order.status == 'PENDING' %}bg-yellow-100 text-yellow-800
                             {% elif order.status == 'APPROVED' %}bg-green-100 text-green-800
                             {% elif order.status == 'REJECTED' %}bg-red-100 text-red-800
                             {% endif %}">
                             {{ order.status }}
                         </span>
-                    </td>
-                    <td class="px-6 py-4">{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-                    <td class="px-6 py-4">
-                        <div class="flex gap-2">
-                            {% if current_user.role in ['MANAGER'] and order.status == 'PENDING' %}
-                            <button type="button" 
-                                    data-action="approve"
-                                    data-order-id="{{ order.id }}"
-                                    class="action-btn px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700">
-                                Approve
-                            </button>
-                            <button type="button"
-                                    data-action="reject"
-                                    data-order-id="{{ order.id }}"
-                                    class="action-btn px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700">
-                                Reject
-                            </button>
-                            {% endif %}
-                            {% if current_user.role in ['MANAGER', 'SUPERVISOR', 'ADMIN'] %}
-                            <button type="button"
-                                    data-action="details"
-                                    data-order-id="{{ order.id }}"
-                                    class="action-btn px-3 py-1 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
-                                Details
-                            </button>
-                            {% endif %}
-                        </div>
-                    </td>
-                </tr>
+                    </div>
+                    <div class="text-sm text-gray-500 mb-3">
+                        {{ order.created_at.strftime('%Y-%m-%d %H:%M') }}
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        {% if current_user.role in ['MANAGER'] and order.status == 'PENDING' %}
+                        <button type="button" 
+                                data-action="approve"
+                                data-order-id="{{ order.id }}"
+                                class="action-btn px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                            Approve
+                        </button>
+                        <button type="button"
+                                data-action="reject"
+                                data-order-id="{{ order.id }}"
+                                class="action-btn px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                            Reject
+                        </button>
+                        {% endif %}
+                        {% if current_user.role in ['MANAGER', 'SUPERVISOR', 'ADMIN'] %}
+                        <button type="button"
+                                data-action="details"
+                                data-order-id="{{ order.id }}"
+                                class="action-btn px-3 py-1 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
+                            Details
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
                 {% endfor %}
-            </tbody>
-        </table>
-        
+            </div>
+        </div>
+
         <!-- Pagination Controls -->
         {% if pagination %}
-        <div class="px-6 py-4 bg-gray-50 border-t">
-            <div class="flex items-center justify-between">
-                <div class="text-sm text-gray-700">
+        <div class="px-4 py-3 bg-gray-50 border-t">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div class="text-sm text-gray-700 text-center md:text-left">
                     Showing {{ (pagination.page - 1) * pagination.per_page + 1 }} 
                     to {{ min(pagination.page * pagination.per_page, pagination.total) }} 
                     of {{ pagination.total }} entries
                 </div>
-                <div class="flex space-x-2">
+                <div class="flex flex-wrap justify-center md:justify-end gap-2">
                     {% if pagination.has_prev %}
                     <a href="{{ url_for('orders', page=pagination.prev_num, search=search, status=status) }}" 
                        class="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
@@ -207,14 +261,14 @@
                     <form id="orderForm" method="POST" action="{{ url_for('create_order') }}">
                         <!-- Product Search -->
                         <div class="mb-4">
-                            <div class="flex gap-4">
+                            <div class="flex flex-col md:flex-row gap-4">
                                 <div class="flex-1">
                                     <input type="text" 
                                            id="productSearch" 
                                            placeholder="Search products..." 
                                            class="w-full px-4 py-2 border rounded-lg">
                                 </div>
-                                <select id="categoryFilter" class="border rounded-lg px-3 py-2">
+                                <select id="categoryFilter" class="border rounded-lg px-3 py-2 w-full md:w-auto">
                                     <option value="">All Categories</option>
                                     {% for category in categories %}
                                     <option value="{{ category.id }}">{{ category.name }}</option>
@@ -489,20 +543,20 @@
                     // Update items table
                     if (itemsContainer) {
                         itemsContainer.innerHTML = '';
-                    let grandTotal = 0;
-                    
-                    data.items.forEach(item => {
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td class="px-3 py-1 text-sm">${item.product_name}</td>
-                            <td class="px-3 py-1 text-right text-sm">${item.quantity}</td>
-                            <td class="px-3 py-1 text-right text-sm">₹${item.price.toFixed(2)}</td>
-                            <td class="px-3 py-1 text-right text-sm">₹${item.total.toFixed(2)}</td>
-                        `;
-                        itemsContainer.appendChild(row);
-                        grandTotal += item.total;
-                    });
-                    
+                        let grandTotal = 0;
+                        
+                        data.items.forEach(item => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td class="px-3 py-1 text-sm">${item.product_name}</td>
+                                <td class="px-3 py-1 text-right text-sm">${item.quantity}</td>
+                                <td class="px-3 py-1 text-right text-sm">₹${item.price.toFixed(2)}</td>
+                                <td class="px-3 py-1 text-right text-sm">₹${item.total.toFixed(2)}</td>
+                            `;
+                            itemsContainer.appendChild(row);
+                            grandTotal += item.total;
+                        });
+                        
                         if (detailsTotal) detailsTotal.textContent = `₹${grandTotal.toFixed(2)}`;
                     }
                     

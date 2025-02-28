@@ -157,7 +157,7 @@ document.getElementById('partSearch').addEventListener('input', function() {
 // Selection handlers
 function selectBus(id, number) {
     document.getElementById('selectedBusId').value = id;
-    document.getElementById('selectedBusDisplay').value = document.querySelector(`tr[data-bus-id="₹{id}"]`).cells[0].textContent;
+    document.getElementById('selectedBusDisplay').value = document.querySelector(`tr[data-bus-id="${id}"]`).cells[0].textContent;
 }
 
 function selectPart(id, name) {
