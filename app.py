@@ -346,7 +346,7 @@ def add_user():
         db.session.add(user)
         db.session.commit()
         
-        flash('User added successfully')
+        flash('User added successfully', 'success')
         log_user_activity(f'added user {user.name}')
         return redirect(url_for('users'))
     
@@ -410,7 +410,7 @@ def add_product():
                 db.session.commit()
                 log_user_activity('DB UPDATE', format_db_action('UPDATE', 'Product', product.name, 
                     f"Quantity updated from {old_quantity} to {product.quantity}"))
-                flash('Product quantity updated successfully')
+                flash('Product quantity updated successfully','success')
             else:
                 flash('Product not found', 'error')
         except ValueError:
@@ -454,7 +454,7 @@ def add_product():
             db.session.commit()
             log_user_activity('DB CREATE', format_db_action('CREATE', 'Product', name, 
                 f"Qty: {quantity}, Price: ₹{price}, Category: {Category.query.get(category_id).name}, Low Stock Threshold: {low_stock_threshold}"))
-            flash('New product added successfully')
+            flash('New product added successfully', 'success')
         except ValueError:
             flash('Invalid input values', 'error')
             return redirect(url_for('products'))
@@ -488,7 +488,7 @@ def add_category():
     db.session.add(category)
     db.session.commit()
     log_user_activity('DB CREATE', format_db_action('CREATE', 'Category', name))
-    flash('Category added successfully')
+    flash('Category added successfully', 'success')
     return redirect(url_for('categories'))
 
 @app.route('/orders')
@@ -584,7 +584,7 @@ def create_order():
     log_user_activity('DB CREATE', format_db_action('CREATE', 'Order', f"#{order.id}",
         f"Items: {', '.join(items_detail)} | Total Value: ₹{total_value:.2f}"))
     
-    flash('Order created successfully')
+    flash('Order created successfully', 'success')
     return redirect(url_for('orders'))
 
 
@@ -631,7 +631,7 @@ def update_order_status(order_id):
         db.session.commit()
         log_user_activity('DB UPDATE', format_db_action('UPDATE', 'Order', f"#{order.id}",
             f"Status changed: {old_status} -> {status}"))
-        flash('Order status updated successfully')
+        flash('Order status updated successfully', 'success')
     
     return redirect(url_for('orders'))
 
@@ -746,7 +746,7 @@ def edit_user(user_id):
         if changes:
             log_user_activity('DB UPDATE', format_db_action('UPDATE', 'User', user.name,
                 ' | '.join(changes)))
-        flash('User updated successfully')
+        flash('User updated successfully', 'success')
         return redirect(url_for('users'))
     return render_template('edit_user.html', user=user)
 
@@ -763,7 +763,7 @@ def delete_user(user_id):
     
     log_user_activity('DB DELETE', format_db_action('DELETE', 'User', user.name,
         f"Details: {user_details}"))
-    flash('User deleted successfully')
+    flash('User deleted successfully', 'success')
     return redirect(url_for('users'))
 
 @app.route('/products/edit/<int:product_id>', methods=['GET', 'POST'])
@@ -850,7 +850,7 @@ def edit_product(product_id):
             if changes:
                 log_user_activity('DB UPDATE', format_db_action('UPDATE', 'Product', product.name, 
                     ' | '.join(changes)))
-            flash('Product updated successfully')
+            flash('Product updated successfully', 'success')
             return redirect(url_for('products'))
             
         except ValueError as e:
@@ -885,7 +885,7 @@ def delete_product(product_id):
     db.session.commit()
     log_user_activity('DB DELETE', format_db_action('DELETE', 'Product', product_name, 
         f"Cascade: {len(related_order_items)} orders, {len(related_bus_parts)} bus parts"))
-    flash('Product and related records deleted successfully')
+    flash('Product and related records deleted successfully', 'success')
     return redirect(url_for('products'))
 
 @app.route('/categories/edit/<int:category_id>', methods=['GET', 'POST'])
@@ -908,7 +908,7 @@ def edit_category(category_id):
         if changes:
             log_user_activity('DB UPDATE', format_db_action('UPDATE', 'Category', category.name,
                 ' | '.join(changes)))
-        flash('Category updated successfully')
+        flash('Category updated successfully', 'success')
         return redirect(url_for('categories'))
     return render_template('edit_category.html', category=category)
 
@@ -933,7 +933,7 @@ def delete_category(category_id):
     
     log_user_activity('DB DELETE', format_db_action('DELETE', 'Category', category_name, 
         f"Deleted {num_products} products: {', '.join(products_detail)}"))
-    flash('Category and associated products deleted successfully')
+    flash('Category and associated products deleted successfully', 'success')
     return redirect(url_for('categories'))
 
 @app.route('/user-activity')
@@ -1066,7 +1066,7 @@ def add_bus():
             
             log_user_activity('DB CREATE', format_db_action('CREATE', 'Bus', name, 
                 f"Number: {bus_number}, Plate: {bus_number_plate}"))
-            flash('Bus added successfully')
+            flash('Bus added successfully', 'success')
             return redirect(url_for('buses'))
             
         except ValueError as e:
@@ -1167,7 +1167,7 @@ def delete_bus(bus_id):
     
     log_user_activity('DB DELETE', format_db_action('DELETE', 'Bus', bus_name, 
         f"Cascade: {num_parts} parts"))
-    flash('Bus deleted successfully')
+    flash('Bus deleted successfully', 'success')
     return redirect(url_for('buses'))
 
 
@@ -1219,7 +1219,7 @@ def assign_parts():
         
         log_user_activity('DB CREATE', format_db_action('CREATE', 'BusPart Assignment', f"{product.name} to {bus.name}",
             f"Assigned Qty: {quantity} | Product Stock: {old_quantity} -> {product.quantity}"))
-        flash('Product assigned to bus successfully.')
+        flash('Product assigned to bus successfully.', 'success')
         return redirect(url_for('assign_parts'))
 
     return render_template('assign_parts.html', buses=buses, products=products)
@@ -1592,11 +1592,11 @@ def add_fuel_consumption():
             mileage = distance / fuel_amount if fuel_amount > 0 else 0
             log_user_activity('DB CREATE', format_db_action('CREATE', 'Fuel Record', f"Bus {bus.name}",
                 f"Amount: {fuel_amount}L, Distance: {distance:.2f}km, Mileage: {mileage:.2f}km/L"))
-            flash(f'Fuel consumption record added successfully. Distance: {distance:.2f} km, Mileage: {mileage:.2f} km/L')
+            flash(f'Fuel consumption record added successfully. Distance: {distance:.2f} km, Mileage: {mileage:.2f} km/L', 'success')
         else:
             log_user_activity('DB CREATE', format_db_action('CREATE', 'Fuel Record', f"Bus {bus.name}",
                 f"Amount: {fuel_amount}L, Initial Reading: {reading}km"))
-            flash('First fuel consumption record added successfully')
+            flash('First fuel consumption record added successfully', 'success')
             
         return redirect(url_for('fuel_consumption'))
         
