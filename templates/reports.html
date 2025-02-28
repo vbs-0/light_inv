@@ -1,84 +1,84 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="space-y-6 p-6 bg-gray-50 border border-blue-400">
-    <h1 class="text-3xl font-bold text-gray-800 mb-6">Inventory Reports Dashboard</h1>
+<div class="space-y-6 p-4 md:p-6 bg-gray-50 border border-blue-400">
+    <h1 class="text-2xl md:text-3xl font-bold text-gray-800 mb-6">Inventory Reports Dashboard</h1>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <!-- Summary Cards -->
-        <div class="content-card p-6 hover:shadow-lg transition-all duration-300">
-            <h2 class="text-xl font-semibold mb-4 text-gray-800">Inventory Summary</h2>
-            <p class="text-3xl font-bold text-blue-400">₹{{ "{:,.2f}".format(total_inventory_value) }}</p>
-            <p class="text-gray-600">Total Inventory Value</p>
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+        <div class="content-card p-4 md:p-6 hover:shadow-lg transition-all duration-300">
+            <h2 class="text-lg md:text-xl font-semibold mb-3 md:mb-4 text-gray-800">Inventory Summary</h2>
+            <p class="text-2xl md:text-3xl font-bold text-blue-400">₹{{ "{:,.2f}".format(total_inventory_value) }}</p>
+            <p class="text-sm md:text-base text-gray-600">Total Inventory Value</p>
         </div>
 
-        <div class="content-card p-6 hover:shadow-lg transition-all duration-300">
-            <h2 class="text-xl font-semibold mb-4 text-gray-800">Usage Summary</h2>
-            <p class="text-3xl font-bold text-green-400">{{ "{:,}".format(weekly_usage) }}</p>
-            <p class="text-gray-600">Weekly Usage</p>
-            <p class="text-2xl font-bold text-green-400 mt-2">{{ "{:,}".format(monthly_usage) }}</p>
-            <p class="text-gray-600">Monthly Usage</p>
+        <div class="content-card p-4 md:p-6 hover:shadow-lg transition-all duration-300">
+            <h2 class="text-lg md:text-xl font-semibold mb-3 md:mb-4 text-gray-800">Usage Summary</h2>
+            <p class="text-2xl md:text-3xl font-bold text-green-400">{{ "{:,}".format(weekly_usage) }}</p>
+            <p class="text-sm md:text-base text-gray-600">Weekly Usage</p>
+            <p class="text-xl md:text-2xl font-bold text-green-400 mt-2">{{ "{:,}".format(monthly_usage) }}</p>
+            <p class="text-sm md:text-base text-gray-600">Monthly Usage</p>
         </div>
 
-        <div class="content-card p-6 hover:shadow-lg transition-all duration-300">
-            <h2 class="text-xl font-semibold mb-4 text-gray-800">Expenditure Summary</h2>
-            <p class="text-3xl font-bold text-red-400">₹{{ "{:,.2f}".format(total_expenditure) }}</p>
-            <p class="text-gray-600">Total Expenditure</p>
+        <div class="content-card p-4 md:p-6 hover:shadow-lg transition-all duration-300">
+            <h2 class="text-lg md:text-xl font-semibold mb-3 md:mb-4 text-gray-800">Expenditure Summary</h2>
+            <p class="text-2xl md:text-3xl font-bold text-red-400">₹{{ "{:,.2f}".format(total_expenditure) }}</p>
+            <p class="text-sm md:text-base text-gray-600">Total Expenditure</p>
         </div>
     </div>
 
     <!-- Charts -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
-        <div class="content-card p-6">
-            <h2 class="text-xl font-semibold mb-4 text-gray-800">Usage Trend</h2>
-            <div class="chart-container">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mt-6 md:mt-8">
+        <div class="content-card p-4 md:p-6">
+            <h2 class="text-lg md:text-xl font-semibold mb-3 md:mb-4 text-gray-800">Usage Trend</h2>
+            <div class="chart-container h-[300px] md:h-[400px]">
                 <canvas id="usageChart"></canvas>
             </div>
         </div>
 
-        <div class="content-card p-6">
-            <h2 class="text-xl font-semibold mb-4 text-gray-800">Expenditure Trend</h2>
-            <div class="chart-container">
+        <div class="content-card p-4 md:p-6">
+            <h2 class="text-lg md:text-xl font-semibold mb-3 md:mb-4 text-gray-800">Expenditure Trend</h2>
+            <div class="chart-container h-[300px] md:h-[400px]">
                 <canvas id="expenditureChart"></canvas>
             </div>
         </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
-        <div class="content-card p-6">
-            <h2 class="text-xl font-semibold mb-4 text-gray-800">Category Distribution</h2>
-            <div class="chart-container">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mt-6 md:mt-8">
+        <div class="content-card p-4 md:p-6">
+            <h2 class="text-lg md:text-xl font-semibold mb-3 md:mb-4 text-gray-800">Category Distribution</h2>
+            <div class="chart-container h-[300px] md:h-[400px]">
                 <canvas id="categoryChart"></canvas>
             </div>
         </div>
 
-        <div class="content-card p-6">
-            <h2 class="text-xl font-semibold mb-4 text-gray-800">Stock Level</h2>
-            <div class="chart-container">
+        <div class="content-card p-4 md:p-6">
+            <h2 class="text-lg md:text-xl font-semibold mb-3 md:mb-4 text-gray-800">Stock Level</h2>
+            <div class="chart-container h-[300px] md:h-[400px]">
                 <canvas id="stockLevelChart"></canvas>
             </div>
         </div>
     </div>
 
     <!-- Detailed Reports -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
-        <div class="content-card p-6">
-            <h2 class="text-xl font-semibold mb-4 text-gray-800">Most Used Items</h2>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mt-6 md:mt-8">
+        <div class="content-card p-4 md:p-6">
+            <h2 class="text-lg md:text-xl font-semibold mb-3 md:mb-4 text-gray-800">Most Used Items</h2>
             <div class="overflow-x-auto">
-<table class="min-w-full">
+                <table class="min-w-full">
                     <thead>
                         <tr>
-                            <th class="text-left text-gray-800 border-b border-blue-300">Item</th>
-                            <th class="text-left text-gray-800 border-b border-blue-300">Quantity Used</th>
-                            <th class="text-left text-gray-800 border-b border-blue-300">Cost</th>
+                            <th class="text-left text-gray-800 border-b border-blue-300 px-2 py-2">Item</th>
+                            <th class="text-left text-gray-800 border-b border-blue-300 px-2 py-2">Quantity Used</th>
+                            <th class="text-left text-gray-800 border-b border-blue-300 px-2 py-2">Cost</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for item in top_items %}
                         <tr>
-<td class="text-gray-600 border-b border-blue-300">{{ item.name }}</td>
-                            <td class="text-gray-600 border-b border-blue-300">{{ item.total_quantity }}</td>
-                            <td class="text-gray-600 border-b border-blue-300">₹{{ "{:,.2f}".format(item.total_cost) }}</td>
+                            <td class="text-gray-600 border-b border-blue-300 px-2 py-2">{{ item.name }}</td>
+                            <td class="text-gray-600 border-b border-blue-300 px-2 py-2">{{ item.total_quantity }}</td>
+                            <td class="text-gray-600 border-b border-blue-300 px-2 py-2">₹{{ "{:,.2f}".format(item.total_cost) }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -86,23 +86,23 @@
             </div>
         </div>
 
-        <div class="content-card p-6">
-            <h2 class="text-xl font-semibold mb-4 text-gray-800">Recent Expenditures</h2>
+        <div class="content-card p-4 md:p-6">
+            <h2 class="text-lg md:text-xl font-semibold mb-3 md:mb-4 text-gray-800">Recent Expenditures</h2>
             <div class="overflow-x-auto">
                 <table class="min-w-full">
                     <thead>
                         <tr>
-                            <th class="text-left text-gray-800">Date</th>
-                            <th class="text-left text-gray-800">Amount</th>
-                            <th class="text-left text-gray-800">Description</th>
+                            <th class="text-left text-gray-800 px-2 py-2">Date</th>
+                            <th class="text-left text-gray-800 px-2 py-2">Amount</th>
+                            <th class="text-left text-gray-800 px-2 py-2">Description</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for expenditure in recent_expenditures %}
                         <tr>
-                            <td class="text-gray-600">{{ expenditure.date.strftime('%Y-%m-%d') }}</td>
-                            <td class="text-gray-600">₹{{ "{:,.2f}".format(expenditure.amount) }}</td>
-                            <td class="text-gray-600">{{ expenditure.description }}</td>
+                            <td class="text-gray-600 px-2 py-2">{{ expenditure.date.strftime('%Y-%m-%d') }}</td>
+                            <td class="text-gray-600 px-2 py-2">₹{{ "{:,.2f}".format(expenditure.amount) }}</td>
+                            <td class="text-gray-600 px-2 py-2">{{ expenditure.description }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -112,8 +112,8 @@
     </div>
 
     <!-- Download Report Button -->
-    <div class="mt-8">
-        <button id="downloadReport" class="bg-indigo-600 text-white px-6 py-3 rounded-md text-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+    <div class="mt-6 md:mt-8 flex justify-center md:justify-start">
+        <button id="downloadReport" class="w-full md:w-auto bg-indigo-600 text-white px-6 py-3 rounded-lg text-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
             Download Full Report (PDF)
         </button>
     </div>
@@ -122,12 +122,17 @@
 <style>
 .chart-container {
     position: relative;
-    height: 400px;
     width: 100%;
 }
 canvas {
     width: 100% !important;
     height: 100% !important;
+}
+
+@media (max-width: 768px) {
+    .chart-container {
+        min-height: 300px;
+    }
 }
 </style>
 
@@ -140,15 +145,27 @@ document.addEventListener('DOMContentLoaded', function() {
     // Set higher resolution for all charts
     const devicePixelRatio = window.devicePixelRatio || 1;
     const chartConfig = {
-        devicePixelRatio: Math.max(devicePixelRatio, 2), // Ensure minimum 2x resolution
+        devicePixelRatio: Math.max(devicePixelRatio, 2),
         responsive: true,
-        maintainAspectRatio: false
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'top',
+                labels: {
+                    boxWidth: 12,
+                    padding: window.innerWidth < 768 ? 10 : 20,
+                    font: {
+                        size: window.innerWidth < 768 ? 10 : 14
+                    }
+                }
+            }
+        }
     };
 
     // Chart.js default configuration for all charts
-    Chart.defaults.color = '#4b5563';  // text-gray-600
-    Chart.defaults.borderColor = '#e5e7eb';  // border-gray-200
-    Chart.defaults.font.size = 14 * devicePixelRatio / 2; // Scale font size with resolution
+    Chart.defaults.color = '#4b5563';
+    Chart.defaults.borderColor = '#e5e7eb';
+    Chart.defaults.font.size = window.innerWidth < 768 ? 10 : 14;
 
     // Initialize canvases with high DPI
     document.querySelectorAll('canvas').forEach(canvas => {
@@ -179,31 +196,39 @@ document.addEventListener('DOMContentLoaded', function() {
                 datasets: [{
                     label: 'Daily Usage',
                     data: usageData.map(item => item.total),
-                    borderColor: '#6366f1',  // indigo-600
-                    backgroundColor: 'rgba(99, 102, 241, 0.1)',  // indigo-600 with opacity
+                    borderColor: '#6366f1',
+                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
                     tension: 0.1,
                     fill: true,
-                    borderWidth: 3 // Increased line width for better visibility
+                    borderWidth: window.innerWidth < 768 ? 2 : 3
                 }]
             },
             options: {
                 ...chartConfig,
-                animation: {
-                    duration: 2000,
-                    easing: 'easeOutQuart'
-                },
                 scales: {
                     y: {
                         beginAtZero: true,
                         grid: {
                             color: '#e2e8f0',
-                            lineWidth: 2
+                            lineWidth: window.innerWidth < 768 ? 1 : 2
+                        },
+                        ticks: {
+                            font: {
+                                size: window.innerWidth < 768 ? 10 : 12
+                            }
                         }
                     },
                     x: {
                         grid: {
                             color: '#e2e8f0',
-                            lineWidth: 2
+                            lineWidth: window.innerWidth < 768 ? 1 : 2
+                        },
+                        ticks: {
+                            font: {
+                                size: window.innerWidth < 768 ? 10 : 12
+                            },
+                            maxRotation: 45,
+                            minRotation: 45
                         }
                     }
                 }
@@ -220,29 +245,37 @@ document.addEventListener('DOMContentLoaded', function() {
                 datasets: [{
                     label: 'Daily Expenditure',
                     data: expenditureData.map(item => item.total),
-                    backgroundColor: 'rgba(99, 102, 241, 0.6)',  // indigo-600 with opacity
-                    borderColor: 'rgb(99, 102, 241)',  // indigo-600
-                    borderWidth: 2
+                    backgroundColor: 'rgba(99, 102, 241, 0.6)',
+                    borderColor: 'rgb(99, 102, 241)',
+                    borderWidth: window.innerWidth < 768 ? 1 : 2
                 }]
             },
             options: {
                 ...chartConfig,
-                animation: {
-                    duration: 2000,
-                    easing: 'easeOutBounce'
-                },
                 scales: {
                     y: {
                         beginAtZero: true,
                         grid: {
                             color: '#e2e8f0',
-                            lineWidth: 2
+                            lineWidth: window.innerWidth < 768 ? 1 : 2
+                        },
+                        ticks: {
+                            font: {
+                                size: window.innerWidth < 768 ? 10 : 12
+                            }
                         }
                     },
                     x: {
                         grid: {
                             color: '#e2e8f0',
-                            lineWidth: 2
+                            lineWidth: window.innerWidth < 768 ? 1 : 2
+                        },
+                        ticks: {
+                            font: {
+                                size: window.innerWidth < 768 ? 10 : 12
+                            },
+                            maxRotation: 45,
+                            minRotation: 45
                         }
                     }
                 }
@@ -271,27 +304,20 @@ document.addEventListener('DOMContentLoaded', function() {
                         'rgba(196, 181, 253, 0.8)',
                         'rgba(251, 146, 190, 0.8)'
                     ],
-                    borderWidth: 2
+                    borderWidth: window.innerWidth < 768 ? 1 : 2
                 }]
             },
             options: {
                 ...chartConfig,
                 plugins: {
                     legend: {
-                        position: 'top',
+                        position: window.innerWidth < 768 ? 'bottom' : 'right',
                         labels: {
-                            padding: 20,
+                            boxWidth: window.innerWidth < 768 ? 10 : 12,
+                            padding: window.innerWidth < 768 ? 10 : 20,
                             font: {
-                                size: 14 * devicePixelRatio / 2
+                                size: window.innerWidth < 768 ? 10 : 12
                             }
-                        }
-                    },
-                    title: {
-                        display: true,
-                        text: 'Item Categories',
-                        color: '#475569',
-                        font: {
-                            size: 16 * devicePixelRatio / 2
                         }
                     }
                 }
@@ -309,12 +335,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     label: 'Current Stock',
                     data: stockLevelData.map(item => item.current_stock),
                     backgroundColor: 'rgba(52, 211, 153, 0.8)',
-                    borderWidth: 2
+                    borderWidth: window.innerWidth < 768 ? 1 : 2
                 }, {
                     label: 'Threshold',
                     data: stockLevelData.map(item => item.threshold),
                     backgroundColor: 'rgba(248, 113, 113, 0.8)',
-                    borderWidth: 2
+                    borderWidth: window.innerWidth < 768 ? 1 : 2
                 }]
             },
             options: {
@@ -324,29 +350,40 @@ document.addEventListener('DOMContentLoaded', function() {
                         beginAtZero: true,
                         grid: {
                             color: '#e2e8f0',
-                            lineWidth: 2
+                            lineWidth: window.innerWidth < 768 ? 1 : 2
+                        },
+                        ticks: {
+                            font: {
+                                size: window.innerWidth < 768 ? 10 : 12
+                            }
                         }
                     },
                     x: {
                         grid: {
                             color: '#e2e8f0',
-                            lineWidth: 2
-                        }
-                    }
-                },
-                plugins: {
-                    title: {
-                        display: true,
-                        text: 'Stock Levels vs Thresholds',
-                        color: '#475569',
-                        font: {
-                            size: 16 * devicePixelRatio / 2
+                            lineWidth: window.innerWidth < 768 ? 1 : 2
+                        },
+                        ticks: {
+                            font: {
+                                size: window.innerWidth < 768 ? 10 : 12
+                            },
+                            maxRotation: 45,
+                            minRotation: 45
                         }
                     }
                 }
             }
         });
     }
+
+    // Handle window resize
+    let resizeTimeout;
+    window.addEventListener('resize', function() {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(function() {
+            location.reload();
+        }, 250);
+    });
 
     // PDF Generation
     document.getElementById('downloadReport').addEventListener('click', function() {
@@ -357,7 +394,7 @@ document.addEventListener('DOMContentLoaded', function() {
         doc.setTextColor(41, 37, 36);
         doc.text('Inventory Management System Report', 14, 22);
         doc.setFontSize(12);
-        doc.text(`Generated on: ₹{new Date().toLocaleString()}`, 14, 32);
+        doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 32);
 
         // Add summary data
         doc.setFontSize(14);
@@ -368,7 +405,7 @@ document.addEventListener('DOMContentLoaded', function() {
         doc.text(`Monthly Usage: {{ "{:,}".format(monthly_usage) }}`, 14, 69);
         doc.text(`Total Expenditure: ₹{{ "{:,.2f}".format(total_expenditure) }}`, 14, 76);
 
-        // Add charts and tables
+        // Add charts
         const charts = [
             { id: 'usageChart', title: 'Usage Trend' },
             { id: 'expenditureChart', title: 'Expenditure Trend' },
@@ -385,7 +422,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             const canvas = document.getElementById(chart.id);
-            // Get high resolution image
             const imgData = canvas.toDataURL('image/png', 1.0);
             doc.addImage(imgData, 'PNG', 14, currentY, 180, 100);
             doc.text(chart.title, 14, currentY + 110);

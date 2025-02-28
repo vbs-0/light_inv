@@ -1572,6 +1572,11 @@ def add_fuel_consumption():
         # Get the last fuel record for this bus to calculate distance traveled
         last_record = Fuel.query.filter_by(bus_id=bus_id).order_by(Fuel.date.desc()).first()
         
+        # Validate that new reading is greater than the last reading
+        if last_record and reading <= last_record.reading:
+            flash(f'New reading ({reading} km) must be greater than the last reading ({last_record.reading} km)', 'error')
+            return redirect(url_for('fuel_consumption'))
+            
         fuel_record = Fuel(
             bus_id=bus_id,
             fuel_amount=fuel_amount,
