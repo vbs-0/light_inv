@@ -1609,9 +1609,53 @@ def add_fuel_consumption():
         flash(f'Invalid input: {str(e)}', 'error')
         return redirect(url_for('fuel_consumption'))
 
+@app.route('/fuel-reports')
+@login_required
+def fuel_reports():
+    """Fuel reports route with comprehensive metrics."""
+    # Get all buses with their fuel data
+    buses = Bus.query.all()
+    
+    # Calculate metrics for each bus
+    bus_reports = []
+    for bus in buses:
+        fuel_records = Fuel.query.filter_by(bus_id=bus.id).order_by(Fuel.date.desc()).all()
+        
+        # Calculate total fuel consumption
+        total_fuel = sum(record.fuel_amount for record in fuel_records)
+        
+        # Calculate total distance traveled
+        total_distance = fuel_records[0].reading - fuel_records[-1].reading if len(fuel_records) > 1 else 0
+        
+        # Calculate average mileage
+        avg_mileage = total_distance / total_fuel if total_fuel > 0 else 0
+        
+        # Get maintenance status
+        maintenance_status = 'Good'  # Placeholder, implement actual logic
+        
+        bus_reports.append({
+            'bus': bus,
+            'total_fuel': total_fuel,
+            'total_distance': total_distance,
+            'avg_mileage': avg_mileage,
+            'maintenance_status': maintenance_status
+        })
+    
+    # Calculate fleet-wide metrics
+    total_fleet_fuel = sum(report['total_fuel'] for report in bus_reports)
+    total_fleet_distance = sum(report['total_distance'] for report in bus_reports)
+    avg_fleet_mileage = total_fleet_distance / total_fleet_fuel if total_fleet_fuel > 0 else 0
+    
+    return render_template('fuel_reports.html',
+                         bus_reports=bus_reports,
+                         total_fleet_fuel=total_fleet_fuel,
+                         total_fleet_distance=total_fleet_distance,
+                         avg_fleet_mileage=avg_fleet_mileage)
+
 @app.route('/fuel-history/<int:bus_id>')
 @login_required
 def fuel_history(bus_id):
+
     """Get fuel consumption history for a specific bus."""
     records = Fuel.query.filter_by(bus_id=bus_id).order_by(Fuel.date.desc()).all()
     
@@ -1638,6 +1682,37 @@ def fuel_history(bus_id):
     
     return jsonify({'history': history})
 
+
+# API endpoint for fuel report data
+@app.route('/api/fuel-report-data')
+@login_required
+def fuel_report_data():
+    """API endpoint for fuel report data."""
+    buses = Bus.query.all()
+    report_data = []
+    
+    for bus in buses:
+        fuel_records = Fuel.query.filter_by(bus_id=bus.id).order_by(Fuel.date.asc()).all()
+        
+        if len(fuel_records) > 1:
+            # Calculate mileage for each period
+            mileage_data = []
+            for i in range(1, len(fuel_records)):
+                distance = fuel_records[i].reading - fuel_records[i-1].reading
+                fuel_used = fuel_records[i].fuel_amount
+                mileage = distance / fuel_used if fuel_used > 0 else 0
+                mileage_data.append({
+                    'date': fuel_records[i].date.strftime('%Y-%m-%d'),
+                    'mileage': mileage
+                })
+            
+            report_data.append({
+                'bus_id': bus.id,
+                'bus_name': f"{bus.bus_number_plate}({bus.bus_number})",
+                'mileage_data': mileage_data
+            })
+    
+    return jsonify(report_data)
 
 if __name__ == '__main__':
     with app.app_context():
