@@ -1,5 +1,5 @@
 # Import necessary libraries
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, current_app
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, current_app, abort
 import pandas as pd
 from io import StringIO
 import csv
@@ -19,12 +19,26 @@ from sqlalchemy import func
 # Create the Flask app
 app = Flask(__name__)
 
-# Set secret key for security
-app.config['SECRET_KEY'] = 'your-secret-key'
+# Secret key for sessions: set SECRET_KEY in the environment.
+# The random fallback is fine for local development but logs everyone out on restart.
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or os.urandom(24).hex()
 
-# Set database URI
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:6399@localhost/inventory_db'
-#app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:6399@localhost/inventory_db'
+
+def _database_uri():
+    """DATABASE_URL wins; otherwise build one from the MYSQL_* variables
+    that docker-compose.yml sets; otherwise fall back to a local database."""
+    if os.environ.get('DATABASE_URL'):
+        return os.environ['DATABASE_URL']
+    host = os.environ.get('MYSQL_HOST')
+    if host:
+        user = os.environ.get('MYSQL_USER', 'root')
+        password = os.environ.get('MYSQL_PASSWORD', '')
+        name = os.environ.get('MYSQL_DATABASE', 'inventory_db')
+        return f"mysql://{user}:{password}@{host}/{name}"
+    return 'mysql://root:password@localhost/inventory_db'
+
+
+app.config['SQLALCHEMY_DATABASE_URI'] = _database_uri()
 # Disable track modifications to prevent app overhead
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -134,33 +148,6 @@ class Fuel(db.Model):
     
 
 
-@app.route('/add_users', methods=['GET'])
-def add_users():
-    """Add predefined users to the database."""
-    users = [
-        {'name': 'Admin', 'email': 'admin@example.com', 'password': 'admin124', 'role': 'ADMIN'},
-        {'name': 'Supervisor', 'email': 'supervisor@example.com', 'password': '123', 'role': 'SUPERVISOR'},
-        {'name': 'Manager', 'email': 'manager@example.com', 'password': '123', 'role': 'MANAGER'},
-        {'name': 'User ', 'email': 'user@gmail.com', 'password': '123', 'role': 'USER'},
-    ]
-
-    for user_data in users:
-        # Check if the user already exists
-        existing_user = User.query.filter_by(email=user_data['email']).first()
-        if existing_user:
-            continue  # Skip if the user already exists
-
-        # Create a new user instance
-        new_user = User(
-            name=user_data['name'],
-            email=user_data['email'],
-            password=generate_password_hash(user_data['password']),  # Hash the password
-            role=user_data['role']
-        )
-        db.session.add(new_user)
-
-    db.session.commit()
-    return "Users added successfully!"
 
 # Custom decorators for role-based access control
 def admin_required(f):
@@ -192,6 +179,54 @@ def supervisor_required(f):
             return redirect(url_for('dashboard'))
         return f(*args, **kwargs)
     return decorated_function
+
+@app.route('/add_users', methods=['GET'])
+def add_users():
+    """Seed the default accounts.
+
+    Allowed without a login only while the user table is empty (first run);
+    after that it requires an admin session. Passwords come from
+    SEED_ADMIN_PASSWORD / SEED_USER_PASSWORD; when they are not set, a random
+    password is generated per account and printed once.
+    """
+    first_run = User.query.count() == 0
+    if not first_run and (not current_user.is_authenticated or current_user.role != 'ADMIN'):
+        abort(403)
+    import secrets
+
+    def pw(env_name):
+        value = os.environ.get(env_name)
+        return value if value else secrets.token_urlsafe(9)
+
+    admin_password = pw('SEED_ADMIN_PASSWORD')
+    user_password = pw('SEED_USER_PASSWORD')
+    users = [
+        {'name': 'Admin', 'email': 'admin@example.com', 'password': admin_password, 'role': 'ADMIN'},
+        {'name': 'Supervisor', 'email': 'supervisor@example.com', 'password': user_password, 'role': 'SUPERVISOR'},
+        {'name': 'Manager', 'email': 'manager@example.com', 'password': user_password, 'role': 'MANAGER'},
+        {'name': 'User ', 'email': 'user@gmail.com', 'password': user_password, 'role': 'USER'},
+    ]
+
+    for user_data in users:
+        # Check if the user already exists
+        existing_user = User.query.filter_by(email=user_data['email']).first()
+        if existing_user:
+            continue  # Skip if the user already exists
+
+        # Create a new user instance
+        new_user = User(
+            name=user_data['name'],
+            email=user_data['email'],
+            password=generate_password_hash(user_data['password']),  # Hash the password
+            role=user_data['role']
+        )
+        db.session.add(new_user)
+
+    db.session.commit()
+    if not os.environ.get('SEED_ADMIN_PASSWORD'):
+        print(f"[light_inv] seeded accounts — admin@example.com / {admin_password}")
+        print(f"[light_inv] seeded accounts — other roles / {user_password}")
+    return "Users added successfully!"
 
 def log_user_activity(action, details=None):
     """Function to log user activity with detailed description."""
@@ -1717,4 +1752,5 @@ def fuel_report_data():
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    app.run(debug=True,host="0.0.0.0", port=5000)
+    app.run(debug=os.environ.get('FLASK_DEBUG') == '1', host='0.0.0.0',
+            port=int(os.environ.get('PORT', 5000)))
